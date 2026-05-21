@@ -1,0 +1,72 @@
+// ─── Firestore Security Rules ─────────────────────────────────────────────────
+// Deploy with: firebase deploy --only firestore:rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+
+    function isAdminOrOrganiser() {
+      return isSignedIn() && getUserData().role in ['admin', 'organiser'];
+    }
+
+    // ── Users collection ──────────────────────────────────────────────────────
+    match /users/{uid} {
+      // Anyone signed in can read their own profile; admins can read all
+      allow read: if isOwner(uid) || isAdmin();
+      // Users can only write their own profile (not their role field)
+      allow create: if isOwner(uid);
+      allow update: if (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+                    || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Satsangs collection ───────────────────────────────────────────────────
+    match /satsangs/{satsangId} {
+      // Anyone (even unauthenticated) can read upcoming satsangs
+      allow read: if true;
+      // Only signed-in users can create
+      allow create: if isSignedIn();
+      // Organiser of this satsang or admin can update/delete
+      allow update: if isSignedIn() && (
+                      resource.data.organizerUid == request.auth.uid || isAdmin() ||
+                      (
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeCount','updatedAt']) &&
+                        (request.resource.data.attendeeCount == resource.data.attendeeCount + 1 || request.resource.data.attendeeCount == resource.data.attendeeCount - 1) &&
+                        get(/databases/$(database)/documents/satsangs/$(satsangId)/attendees/$(request.auth.uid)).exists()
+                      )
+                    );
+      allow delete: if isSignedIn() && (
+                      resource.data.organizerUid == request.auth.uid || isAdmin()
+                    );
+
+      // ── Attendees subcollection ─────────────────────────────────────────────
+      match /attendees/{userId} {
+        allow read: if isSignedIn() && (
+                      isOwner(userId) ||
+                      get(/databases/$(database)/documents/satsangs/$(satsangId)).data.organizerUid == request.auth.uid ||
+                      isAdmin()
+                    );
+        allow create: if isSignedIn() && isOwner(userId);
+        allow update: if isSignedIn() && isOwner(userId);
+        allow delete: if isSignedIn() && (isOwner(userId) || isAdmin());
+      }
+    }
+  }
+}
