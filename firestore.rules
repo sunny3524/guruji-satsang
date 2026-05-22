@@ -52,14 +52,8 @@ service cloud.firestore {
                       get(/databases/$(database)/documents/satsangs/$(satsangId)).data.organizerUid == request.auth.uid ||
                       isAdmin()
                     );
-        allow create: if request.auth != null && (
-                      request.auth.uid == userId ||
-                      get(/databases/$(database)/documents/satsangs/$(satsangId)).data.organizerUid == request.auth.uid
-                    );
-        allow update: if request.auth != null && (
-                      request.auth.uid == userId ||
-                      get(/databases/$(database)/documents/satsangs/$(satsangId)).data.organizerUid == request.auth.uid
-                    );
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null && (
                       request.auth.uid == userId || isAdmin()
                     );
@@ -67,10 +61,9 @@ service cloud.firestore {
     }
 
     // ── Collection Group Rules for Dashboard Queries ───────────────────────────
-    // This allows collectionGroup('attendees') queries to run safely without breaking on parent lookups.
+    // This allows collectionGroup('attendees') property queries to match safely
     match /{path=**}/attendees/{userId} {
-      allow read: if request.auth != null && (userId == request.auth.uid || isAdmin());
+      allow read: if request.auth != null && (resource.data.userUid == request.auth.uid || isAdmin());
     }
-    
   }
 }

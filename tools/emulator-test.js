@@ -7,16 +7,14 @@ const fs = require('fs');
     const testEnv = await initializeTestEnvironment({
       projectId: 'guruji-satsang-b650a',
       firestore: { 
-        rules,
-        host: 'localhost',
-        port: 8080
+        rules
       }
     });
 
     console.log('=== Test: collectionGroup query on attendees ===\n');
 
     // Create an organizer context
-    const organizer = testEnv.authenticatedContext({ uid: 'organizerUid' });
+    const organizer = testEnv.authenticatedContext('organizerUid');
     const organizerDb = organizer.firestore();
 
     // Create a satsang as the organizer
@@ -31,7 +29,7 @@ const fs = require('fs');
     console.log('   Satsang created: satsang1\n');
 
     // Create an attendee document as alice
-    const alice = testEnv.authenticatedContext({ uid: 'aliceUid' });
+    const alice = testEnv.authenticatedContext('aliceUid');
     const aliceDb = alice.firestore();
 
     console.log('2. Creating attendee record as alice...');
@@ -50,16 +48,6 @@ const fs = require('fs');
       const snap = await q.get();
       console.log('   ✓ Query SUCCEEDED');
       console.log('   Docs found:', snap.docs.map(d => ({ id: d.id, path: d.ref.path, data: d.data() })));
-    } catch (err) {
-      console.error('   ✗ Query FAILED:', err.message || err);
-    }
-
-    console.log('\n4. Running collectionGroup query as alice for documentId==aliceUid...');
-    const q2 = aliceDb.collectionGroup('attendees').where(require('firebase/firestore').documentId(), '==', 'aliceUid');
-    try {
-      const snap = await q2.get();
-      console.log('   ✓ Query SUCCEEDED');
-      console.log('   Docs found:', snap.docs.map(d => ({ id: d.id, path: d.ref.path })));
     } catch (err) {
       console.error('   ✗ Query FAILED:', err.message || err);
     }

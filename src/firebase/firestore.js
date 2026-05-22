@@ -9,10 +9,10 @@ import {
 import { db } from "./config";
 
 // ── Collections ───────────────────────────────────────────────────────────────
-const USERS      = "users";
-const SATSANGS   = "satsangs";
-const ATTENDEES  = "attendees";   // subcollection of satsang
-const SEVAS      = "sevas";       // subcollection of satsang
+const USERS = "users";
+const SATSANGS = "satsangs";
+const ATTENDEES = "attendees";   // subcollection of satsang
+const SEVAS = "sevas";       // subcollection of satsang
 
 // ── User Profiles ─────────────────────────────────────────────────────────────
 export async function createUserProfile(uid, data) {
@@ -138,18 +138,44 @@ export async function checkAttendance(satsangId, userUid) {
   return snap.exists() ? snap.data() : null;
 }
 
+// export async function getUserAttendanceSatsangs(userUid) {
+//   let q = query(collectionGroup(db, ATTENDEES), where("userUid", "==", userUid));
+//   let snap = await getDocs(q);
+
+//   if (snap.empty) {
+//     q = query(collectionGroup(db, ATTENDEES), where(documentId(), "==", userUid));
+//     snap = await getDocs(q);
+//   }
+
+//   const satsangIds = [...new Set(snap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean))];
+//   const satsangs = await Promise.all(satsangIds.map(id => getSatsang(id)));
+//   return satsangs.filter(Boolean);
+// }
 export async function getUserAttendanceSatsangs(userUid) {
-  let q = query(collectionGroup(db, ATTENDEES), where("userUid", "==", userUid));
-  let snap = await getDocs(q);
+  try {
+    // 1. Query by the internal document property field string instead of documentId()
+    const q = query(
+      collectionGroup(db, ATTENDEES),
+      where("userUid", "==", userUid)
+    );
 
-  if (snap.empty) {
-    q = query(collectionGroup(db, ATTENDEES), where(documentId(), "==", userUid));
-    snap = await getDocs(q);
+    const snap = await getDocs(q);
+
+    // 2. Map out the parent satsang document references from the matched attendance records
+    const satsangIds = [...new Set(snap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean))];
+
+    // 3. Fetch the corresponding parent Satsang metadata cards
+    const satsangs = await Promise.all(satsangIds.map(id => getSatsang(id)));
+
+    // 4. Return sorted upcoming events chronologically
+    return satsangs
+      .filter(Boolean)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
+
+  } catch (error) {
+    console.error("attendance load failed", error);
+    throw error;
   }
-
-  const satsangIds = [...new Set(snap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean))];
-  const satsangs = await Promise.all(satsangIds.map(id => getSatsang(id)));
-  return satsangs.filter(Boolean);
 }
 
 export async function removeAttendance(satsangId, userUid, guests = 0) {

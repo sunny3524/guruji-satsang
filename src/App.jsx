@@ -11,24 +11,14 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { functions } from "./firebase/config";
 import { useAuth, AuthProvider } from "./hooks/useAuth";
-import guruji1 from "./assets/images/Guruji1m.jpg";
-import guruji2 from "./assets/images/Guruji2m.jpg";
-import guruji3 from "./assets/images/Guruji3m.jpg";
-import guruji4 from "./assets/images/Guruji4m.jpg";
-import guruji5 from "./assets/images/Guruji5m.jpg";
-import guruji6 from "./assets/images/Guruji6m.jpg";
-import guruji7 from "./assets/images/Guruji7m.jpg";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const GURUJI_IMGS = [
-  guruji1,
-  guruji2,
-  guruji3,
-  guruji4,
-  guruji5,
-  guruji6,
-  guruji7,
-];
+const gurujiImages = import.meta.glob("./assets/images/*.{png,jpg,jpeg,bmp,JPG,JPEG}", { eager: true });
+const GURUJI_IMGS = Object.entries(gurujiImages)
+  .sort(([pathA], [pathB]) => pathA.localeCompare(pathB))
+  .map(([, module]) => module.default)
+  .filter(Boolean)
+  .slice(0, 12); // Limit to the first 12 images for faster page load
+
 
 const STANDARD_SEVAS = [
   { id: "s1", icon: "🍲", name: "Langar Distribution Seva", desc: "Serving Langar Prashad during the satsang" },
@@ -277,10 +267,21 @@ function HomeView({ nav, upcoming, user, heroImg }) {
           {upcoming.length === 0 && <p style={{ color: C.muted, fontSize: 15 }}>No upcoming satsangs yet. Be the first to host one! 🙏</p>}
         </div>
       </SectionWrap>
-      <SectionWrap label="Guruji's Darbar">
+      <SectionWrap label="Guruji's Swaroops">
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {GURUJI_IMGS.map((src, i) => (
-            <img key={i} src={src} alt={`Guruji ${i + 1}`} style={{ width: 116, height: 138, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.border}` }} onError={e => { e.target.style.display = "none"; }} />
+            <a key={i} href={src} target="_blank" rel="noopener noreferrer" title={`Open full-size Guruji image ${i + 1}`} style={{ display: "block", width: 116, height: 138, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.border}` }}>
+              <img
+                src={src}
+                alt={`Guruji ${i + 1}`}
+                loading="lazy"
+                decoding="async"
+                width={116}
+                height={138}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                onError={e => { e.target.style.display = "none"; }}
+              />
+            </a>
           ))}
         </div>
       </SectionWrap>
