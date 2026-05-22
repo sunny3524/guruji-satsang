@@ -4,8 +4,8 @@
       "collectionGroup": "satsangs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "date",   "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "date",   "order": "ASCENDING" },
         { "fieldPath": "time",   "order": "ASCENDING" }
       ]
     },

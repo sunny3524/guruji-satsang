@@ -4,7 +4,7 @@
 import {
   collection, collectionGroup, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove,
-  onSnapshot, limit,
+  onSnapshot, limit, documentId,
 } from "firebase/firestore";
 import { db } from "./config";
 
@@ -139,8 +139,14 @@ export async function checkAttendance(satsangId, userUid) {
 }
 
 export async function getUserAttendanceSatsangs(userUid) {
-  const q = query(collectionGroup(db, ATTENDEES), where("userUid", "==", userUid));
-  const snap = await getDocs(q);
+  let q = query(collectionGroup(db, ATTENDEES), where("userUid", "==", userUid));
+  let snap = await getDocs(q);
+
+  if (snap.empty) {
+    q = query(collectionGroup(db, ATTENDEES), where(documentId(), "==", userUid));
+    snap = await getDocs(q);
+  }
+
   const satsangIds = [...new Set(snap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean))];
   const satsangs = await Promise.all(satsangIds.map(id => getSatsang(id)));
   return satsangs.filter(Boolean);
