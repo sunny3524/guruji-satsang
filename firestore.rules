@@ -7,7 +7,6 @@ service cloud.firestore {
 
     // ── Helper functions ──────────────────────────────────────────────────────
 
-    // Kept as a helper: involves a get() call and meaningful logic
     function isAdmin() {
       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
       return request.auth != null &&
@@ -46,11 +45,9 @@ service cloud.firestore {
                       resource.data.organizerUid == request.auth.uid || isAdmin()
                     );
 
-      // ── Attendees subcollection ───────────────────────────────────────────
+      // ── Attendees subcollection (Direct Document Access / Single Satsang View) ───
       match /attendees/{userId} {
-        // FIX: replaced resource.parent.parent (invalid) with explicit get() path
         allow read: if request.auth != null && (
-                      resource.data.userUid == request.auth.uid ||
                       resource.id == request.auth.uid ||
                       get(/databases/$(database)/documents/satsangs/$(satsangId)).data.organizerUid == request.auth.uid ||
                       isAdmin()
@@ -68,5 +65,12 @@ service cloud.firestore {
                     );
       }
     }
+
+    // ── Collection Group Rules for Dashboard Queries ───────────────────────────
+    // This allows collectionGroup('attendees') queries to run safely without breaking on parent lookups.
+    match /{path=**}/attendees/{userId} {
+      allow read: if request.auth != null && (userId == request.auth.uid || isAdmin());
+    }
+    
   }
 }
