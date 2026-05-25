@@ -225,7 +225,7 @@ function AppInner() {
         {view === "admin" && isAdmin && <AdminView user={user} profile={profile} nav={nav} notify={notify} />}
       </main>
 
-      {view !== "home" && <DivineVachanBanner view={view} />}
+      {view !== "home" && view !== "guidelines" && <DivineVachanBanner view={view} />}
 
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: "28px 32px", textAlign: "center" }}>
         <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8, fontFamily: "sans-serif" }}>
