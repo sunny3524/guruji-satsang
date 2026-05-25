@@ -11,6 +11,8 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { functions } from "./firebase/config";
 import { useAuth, AuthProvider } from "./hooks/useAuth";
+import { geocodeLocation, getDistanceKm } from "./utils/geoUtils";
+import { getRandomVachan } from "./utils/vachans";
 
 const gurujiImages = import.meta.glob("./assets/images/*.{png,jpg,jpeg,bmp,JPG,JPEG}", { eager: true });
 const GURUJI_IMGS = Object.entries(gurujiImages)
@@ -192,8 +194,8 @@ function AppInner() {
         <button onClick={() => nav("home")} style={{ display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", cursor: "pointer" }}>
           <img src={GURUJI_IMGS[0]} alt="Guruji" style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.gold}` }} onError={e => { e.target.style.display = "none"; }} />
           <span>
-            <span style={{ display: "block", fontSize: 17, fontWeight: 700, color: C.gold, letterSpacing: "0.02em" }}>Guruji Satsang</span>
-            <span style={{ display: "block", fontSize: 9, color: C.muted, letterSpacing: "0.2em", fontFamily: "sans-serif" }}>OM NAMAH SHIVAY</span>
+            <span style={{ display: "block", fontSize: 17, fontWeight: 700, color: C.gold, letterSpacing: "0.02em" }}>Guruji Satsang App</span>
+            <span style={{ display: "block", fontSize: 9, color: C.muted, letterSpacing: "0.2em", fontFamily: "sans-serif" }}>Jai Guruji</span>
           </span>
         </button>
         <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
@@ -215,13 +217,15 @@ function AppInner() {
         {view === "login" && <LoginView nav={nav} notify={notify} />}
         {view === "register" && <RegisterView nav={nav} notify={notify} />}
         {view === "forgot" && <ForgotView nav={nav} notify={notify} />}
-        {view === "find" && <FindView filtered={filtered} search={search} setSearch={setSearch} nav={nav} user={user} />}
+        {view === "find" && <FindView search={search} setSearch={setSearch} nav={nav} user={user} profile={profile} upcoming={upcoming} />}
         {view === "detail" && <DetailView satsangId={sel} user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}
         {view === "post" && <PostView user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}
         {view === "dashboard" && <DashboardView user={user} profile={profile} nav={nav} notify={notify} />}
         {view === "guidelines" && <GuidelinesView />}
         {view === "admin" && isAdmin && <AdminView user={user} profile={profile} nav={nav} notify={notify} />}
       </main>
+
+      {view !== "home" && <DivineVachanBanner view={view} />}
 
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: "28px 32px", textAlign: "center" }}>
         <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8, fontFamily: "sans-serif" }}>
@@ -235,11 +239,13 @@ function AppInner() {
 
 // ─── Home ─────────────────────────────────────────────────────────────────────
 function HomeView({ nav, upcoming, user, heroImg }) {
+  const [vachan] = useState(() => getRandomVachan());
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", maxWidth: 1180, margin: "0 auto", padding: "56px 32px 40px", gap: 48, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 380px", maxWidth: 540 }}>
-          <div style={{ fontSize: 10, letterSpacing: "0.28em", color: C.gold, textTransform: "uppercase", marginBottom: 18, fontFamily: "sans-serif" }}>OM NAMAH SHIVAY GURUJI SADA SAHAY</div>
+          {/* <div style={{ fontSize: 10, letterSpacing: "0.28em", color: C.gold, textTransform: "uppercase", marginBottom: 18, fontFamily: "sans-serif" }}>OM NAMAH SHIVAY SHIVJI SADA SAHAY</div>
+          <div style={{ fontSize: 10, letterSpacing: "0.28em", color: C.gold, textTransform: "uppercase", marginBottom: 18, fontFamily: "sans-serif" }}>OM NAMAH SHIVAY GURUJI SADA SAHAY</div> */}
           <h1 style={{ fontSize: "clamp(44px,7vw,82px)", lineHeight: 1.05, fontWeight: 700, margin: "0 0 18px", color: C.cream }}>
             Guruji<br /><span style={{ color: C.gold, fontStyle: "italic" }}>Satsang</span>
           </h1>
@@ -267,6 +273,38 @@ function HomeView({ nav, upcoming, user, heroImg }) {
           {upcoming.length === 0 && <p style={{ color: C.muted, fontSize: 15 }}>No upcoming satsangs yet. Be the first to host one! 🙏</p>}
         </div>
       </SectionWrap>
+
+      <SectionWrap label="Guruji's Divine Vachan">
+        <div style={{
+          background: `linear-gradient(135deg, ${C.card} 0%, rgba(39,14,3,0.85) 100%)`,
+          border: `1px solid ${C.gold}`,
+          borderRadius: 16,
+          padding: "36px 40px",
+          textAlign: "center",
+          boxShadow: `0 8px 32px rgba(212,151,42,0.1)`,
+          position: "relative",
+          overflow: "hidden"
+        }}>
+          <div style={{
+            position: "absolute",
+            top: -20,
+            left: -20,
+            fontSize: 120,
+            opacity: 0.03,
+            color: C.gold,
+            fontFamily: "Georgia, serif",
+            userSelect: "none"
+          }}>“</div>
+          <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14, fontFamily: "sans-serif", fontWeight: 700 }}>Guruji's Bani</div>
+          <h3 style={{ fontSize: "clamp(20px, 4vw, 25px)", fontStyle: "italic", color: C.cream, margin: "0 0 16px", lineHeight: 1.6, fontWeight: "normal" }}>
+            "{vachan.punjabi}"
+          </h3>
+          <p style={{ fontSize: "clamp(14px, 3.2vw, 16px)", color: C.gold, margin: 0, fontStyle: "italic", lineHeight: 1.6 }}>
+            — {vachan.english}
+          </p>
+        </div>
+      </SectionWrap>
+
       <SectionWrap label="Guruji's Swaroops">
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {GURUJI_IMGS.map((src, i) => (
@@ -290,17 +328,392 @@ function HomeView({ nav, upcoming, user, heroImg }) {
 }
 
 // ─── Find ─────────────────────────────────────────────────────────────────────
-function FindView({ filtered, search, setSearch, nav, user }) {
-  return (
-    <Page title="Find a Satsang" sub="Search upcoming Satsangs by city or postcode">
-      <div style={{ display: "flex", alignItems: "center", gap: 12, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 18px", marginBottom: 32, maxWidth: 400 }}>
-        <span style={{ fontSize: 18 }}>🔍</span>
-        <input style={{ background: "none", border: "none", outline: "none", color: C.cream, fontSize: 15, width: "100%", fontFamily: "Georgia,serif" }} placeholder="City or postcode…" value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
-      {filtered.length === 0
-        ? <Empty><p>No Satsangs found in that area yet.</p>{user && <Btn onClick={() => nav("post")}>Host the first one →</Btn>}</Empty>
-        : <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>{filtered.map(s => <SCard key={s.id} s={s} nav={nav} />)}</div>
+function FindView({ search, setSearch, nav, user, profile, upcoming }) {
+  const [userCoords, setUserCoords] = useState(null);
+  const [searchCoords, setSearchCoords] = useState(null);
+  const [isGeocodingSearch, setIsGeocodingSearch] = useState(false);
+  const [isGeocodingProfile, setIsGeocodingProfile] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationLabel, setLocationLabel] = useState("");
+  const [geoError, setGeoError] = useState(null);
+  const [searchError, setSearchError] = useState(null);
+
+  // 1. Geocode Profile Location on Mount
+  useEffect(() => {
+    let active = true;
+    async function initProfileLocation() {
+      if (!profile) return;
+      const queryParts = [];
+      if (profile.postcode) queryParts.push(profile.postcode);
+      if (profile.city) queryParts.push(profile.city);
+      
+      const queryStr = queryParts.join(" ").trim();
+      if (!queryStr) return;
+
+      setIsGeocodingProfile(true);
+      try {
+        const coords = await geocodeLocation(queryStr);
+        if (coords && active) {
+          setUserCoords(coords);
+          setLocationLabel(`profile location (${profile.city || profile.postcode})`);
+        }
+      } catch (err) {
+        console.warn("Could not geocode profile location", err);
+      } finally {
+        if (active) setIsGeocodingProfile(false);
       }
+    }
+    initProfileLocation();
+    return () => { active = false; };
+  }, [profile]);
+
+  // 2. Debounced Search Geocoding (600ms)
+  useEffect(() => {
+    const trimmed = search.trim();
+    if (!trimmed) {
+      setSearchCoords(null);
+      setIsGeocodingSearch(false);
+      setSearchError(null);
+      return;
+    }
+
+    setIsGeocodingSearch(true);
+    setSearchError(null);
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const coords = await geocodeLocation(trimmed);
+        if (coords) {
+          setSearchCoords(coords);
+          setSearchError(null);
+        } else {
+          setSearchCoords(null);
+          setSearchError(`"${trimmed}" is not a valid city or postcode. Please enter a valid location.`);
+        }
+      } catch (err) {
+        console.warn("Search geocoding error", err);
+        setSearchCoords(null);
+        setSearchError("Failed to connect to the geocoding service. Please try again.");
+      } finally {
+        setIsGeocodingSearch(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounce);
+  }, [search]);
+
+  // 3. HTML5 Geolocation Trigger
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGeoError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setIsLocating(true);
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setLocationLabel("your device location");
+        setIsLocating(false);
+        // Clear search inputs and search errors when active location changes
+        setSearch("");
+        setSearchCoords(null);
+        setSearchError(null);
+      },
+      (error) => {
+        console.warn("Geolocation error", error);
+        setIsLocating(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setGeoError("Location access was denied. Please search by city or postcode.");
+        } else {
+          setGeoError("Could not retrieve device location. Please try searching instead.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  };
+
+  // 4. Calculate Distance and Filter/Sort List
+  const activeSearch = search.trim().toLowerCase();
+  
+  // Create calculated list
+  const calculatedSatsangs = upcoming.map(s => {
+    let distance = null;
+    if (activeSearch && searchCoords) {
+      distance = getDistanceKm(s.latitude, s.longitude, searchCoords.lat, searchCoords.lng);
+    } else if (userCoords && !activeSearch) {
+      distance = getDistanceKm(s.latitude, s.longitude, userCoords.lat, userCoords.lng);
+    }
+    return { ...s, distance };
+  });
+
+  // Filter list
+  const filteredSatsangs = calculatedSatsangs.filter(s => {
+    // If there's an invalid search error, return zero results
+    if (searchError) return false;
+
+    // Strict client-side date safety filter: ensure elapsed events are never shown
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (s.date && s.date < todayStr) return false;
+
+    if (!activeSearch) return true;
+    
+    // If searchCoords is successfully resolved, we DO NOT filter the list by text matching.
+    // Instead, we search ALL satsangs and sort them all by proximity!
+    if (searchCoords) {
+      return true;
+    }
+    
+    // Default text filter while resolving/fallback
+    return s.city?.toLowerCase().includes(activeSearch) || s.postcode?.toLowerCase().includes(activeSearch);
+  });
+
+  // Sort list:
+  // - First sort by distance if available (ascending, closest first)
+  // - Then sort by date and time (ascending, chronological)
+  const sortedSatsangs = [...filteredSatsangs].sort((a, b) => {
+    const aHasDist = typeof a.distance === "number" && !isNaN(a.distance);
+    const bHasDist = typeof b.distance === "number" && !isNaN(b.distance);
+
+    if (aHasDist && bHasDist) {
+      return a.distance - b.distance; // Ascending: nearest first!
+    }
+    if (aHasDist) return -1;
+    if (bHasDist) return 1;
+    
+    // Fallback: Chronological
+    const dateComp = (a.date || "").localeCompare(b.date || "");
+    if (dateComp !== 0) return dateComp;
+    return (a.time || "").localeCompare(b.time || "");
+  });
+
+  // Render Label explaining the sequence
+  let sequenceHeading = "Upcoming Satsangs";
+  if (activeSearch) {
+    if (isGeocodingSearch) {
+      sequenceHeading = `Searching near "${search}"…`;
+    } else if (searchCoords) {
+      sequenceHeading = `Satsangs nearest to "${search}"`;
+    } else {
+      sequenceHeading = `Search results for "${search}"`;
+    }
+  } else if (userCoords) {
+    sequenceHeading = `Satsangs nearest to ${locationLabel}`;
+  }
+
+  return (
+    <Page title="Find a Satsang" sub="Connect with the Sangat in your region">
+      
+      {/* Geolocation, search, and sequencing control panel */}
+      <div style={{
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        borderRadius: 16,
+        padding: "24px 28px",
+        marginBottom: 36,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16
+      }}>
+        
+        <div style={{
+          display: "flex",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "stretch"
+        }}>
+          {/* Search bar */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: "rgba(0,0,0,0.2)",
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: "10px 16px",
+            flex: "1 1 300px"
+          }}>
+            <span style={{ fontSize: 18, opacity: 0.7 }}>🔍</span>
+            <input
+              style={{
+                background: "none",
+                border: "none",
+                outline: "none",
+                color: C.cream,
+                fontSize: 15,
+                width: "100%",
+                fontFamily: "Georgia,serif"
+              }}
+              placeholder="Enter city or postcode (e.g. Manchester)"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {isGeocodingSearch && (
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: C.gold,
+                animation: "pulse 1.2s infinite ease-in-out"
+              }} />
+            )}
+          </div>
+
+          {/* Near Me Button */}
+          <button
+            onClick={handleUseCurrentLocation}
+            disabled={isLocating}
+            style={{
+              background: userCoords && locationLabel.includes("device") ? `rgba(212,151,42,0.15)` : "none",
+              border: `1px solid ${C.gold}`,
+              borderRadius: 10,
+              padding: "10px 20px",
+              color: C.gold,
+              fontWeight: 700,
+              cursor: isLocating ? "not-allowed" : "pointer",
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "all 0.2s ease-in-out",
+              boxShadow: userCoords && locationLabel.includes("device") ? `0 0 12px rgba(212,151,42,0.2)` : "none"
+            }}
+            onMouseOver={e => {
+              if (!isLocating) {
+                e.currentTarget.style.background = `rgba(212,151,42,0.1)`;
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }
+            }}
+            onMouseOut={e => {
+              if (!isLocating) {
+                e.currentTarget.style.background = userCoords && locationLabel.includes("device") ? `rgba(212,151,42,0.15)` : "none";
+                e.currentTarget.style.transform = "translateY(0)";
+              }
+            }}
+          >
+            {isLocating ? "⏳ Finding Location…" : "📍 Near Me"}
+          </button>
+        </div>
+
+        {/* Search Error Message */}
+        {searchError && (
+          <div style={{
+            fontSize: 13,
+            color: C.saffron,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            background: "rgba(122,26,10,0.15)",
+            padding: "10px 14px",
+            borderRadius: 8,
+            borderLeft: `3px solid ${C.red}`
+          }}>
+            <span>⚠️ {searchError}</span>
+          </div>
+        )}
+
+        {/* Location Status Message & Info */}
+        {(userCoords || geoError || isGeocodingProfile) && !activeSearch && (
+          <div style={{
+            fontSize: 13,
+            color: geoError ? C.saffron : C.muted,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            background: "rgba(0,0,0,0.15)",
+            padding: "8px 14px",
+            borderRadius: 8,
+            borderLeft: `3px solid ${geoError ? C.saffron : C.gold}`
+          }}>
+            {isGeocodingProfile ? (
+              <span>✨ Finding your location from profile…</span>
+            ) : geoError ? (
+              <span>⚠️ {geoError}</span>
+            ) : (
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexWrap: "wrap", gap: 8 }}>
+                <span>
+                  Proximity sequencing active based on <strong style={{ color: C.gold }}>{locationLabel}</strong>.
+                </span>
+                {userCoords && (
+                  <button
+                    onClick={() => {
+                      setUserCoords(null);
+                      setLocationLabel("");
+                      setGeoError(null);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: C.saffron,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      textDecoration: "underline",
+                      padding: 0
+                    }}
+                  >
+                    Clear location
+                  </button>
+                )}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Header and Results */}
+      <h3 style={{
+        fontSize: 20,
+        fontWeight: 700,
+        color: C.cream,
+        marginBottom: 20,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between"
+      }}>
+        <span>{sequenceHeading}</span>
+        <span style={{ fontSize: 13, color: C.muted, fontWeight: "normal" }}>
+          {sortedSatsangs.length} {sortedSatsangs.length === 1 ? "satsang" : "satsangs"} found
+        </span>
+      </h3>
+
+      {sortedSatsangs.length === 0 ? (
+        <Empty>
+          <p>
+            {searchError 
+              ? "Search aborted due to invalid location input." 
+              : `No upcoming Satsangs found${activeSearch ? ` matching "${search}"` : ""}.`}
+          </p>
+          {user ? (
+            <Btn onClick={() => nav("post")}>Host the first one →</Btn>
+          ) : (
+            <Btn onClick={() => nav("login")}>Login to Host →</Btn>
+          )}
+        </Empty>
+      ) : (
+        <div style={{
+          display: "flex",
+          gap: 16,
+          flexWrap: "wrap"
+        }}>
+          {sortedSatsangs.map(s => (
+            <SCard key={s.id} s={s} nav={nav} />
+          ))}
+        </div>
+      )}
+
+      {/* Embedded CSS animation in component or via style tag */}
+      <style>{`
+        @keyframes pulse {
+          0% { transform: scale(0.9); opacity: 0.5; }
+          50% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(0.9); opacity: 0.5; }
+        }
+      `}</style>
     </Page>
   );
 }
@@ -492,12 +905,30 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
     if (!f.title || !f.city || !f.address || !f.date || !f.time) { notify("Please fill all required fields", "err"); return; }
     setBusy(true);
     try {
+      // Geocode city and postcode for physical coordinates
+      let latitude = null;
+      let longitude = null;
+      try {
+        let coords = await geocodeLocation(`${f.city} ${f.postcode || ""}`);
+        if (!coords && f.city) {
+          coords = await geocodeLocation(f.city);
+        }
+        if (coords) {
+          latitude = coords.lat;
+          longitude = coords.lng;
+        }
+      } catch (ge) {
+        console.warn("Geocoding during event creation failed:", ge);
+      }
+
       const sevas = chosenSv.reduce((acc, sv) => ({
         ...acc,
         [sv.id]: { id: sv.id, needed: sv.needed, opted: 0, confirmed: sv.confirmed || 0, enrolled: [] }
       }), {});
       await createSatsang({
         ...f, maxAttendees: +f.maxAttendees, sevas,
+        latitude,
+        longitude,
         organizerName: profile?.name || user.displayName,
         organizerEmail: user.email,
         organizerPhone: profile?.phone || "",
@@ -567,6 +998,17 @@ function DashboardView({ user, profile, nav, notify }) {
 
   useEffect(() => {
     if (!user?.uid) return;
+
+    // Load Satsangs hosted by the user
+    getSatsangsByOrganizer(user.uid)
+      .then(hostedList => {
+        setHosted(hostedList || []);
+      })
+      .catch(err => {
+        console.error("hosted load failed", err);
+        setHosted([]);
+      });
+
     getUserAttendanceSatsangs(user.uid)
       .then(attended => {
         const sorted = attended
@@ -642,6 +1084,7 @@ function DashboardView({ user, profile, nav, notify }) {
 // ─── Guidelines ───────────────────────────────────────────────────────────────
 function GuidelinesView() {
   const [open, setOpen] = useState(null);
+  const [vachan] = useState(() => getRandomVachan());
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 32px" }}>
       <div style={{ display: "flex", gap: 36, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 40 }}>
@@ -680,8 +1123,9 @@ function GuidelinesView() {
       </div>
       <div style={{ marginTop: 48, padding: "32px 36px", background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, textAlign: "center" }}>
         <div style={{ width: 60, height: 3, background: `linear-gradient(90deg,${C.gold},${C.saffron})`, margin: "0 auto 20px", borderRadius: 2 }} />
-        <p style={{ fontSize: 22, fontStyle: "italic", color: C.gold, margin: "0 0 12px" }}>"Ahankaar rab di raah te chalan nai denda."</p>
-        <p style={{ fontSize: 14, color: C.muted }}>— Guruji Maharaj · Ego is the greatest deterrent on the path of spirituality.</p>
+        <div style={{ fontSize: 9, color: C.gold, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 12, fontFamily: "sans-serif", fontWeight: 700 }}>🌹 Guruji's Divine Vachan</div>
+        <p style={{ fontSize: 22, fontStyle: "italic", color: C.cream, margin: "0 0 12px", lineHeight: 1.6 }}>"{vachan.punjabi}"</p>
+        <p style={{ fontSize: 14, color: C.gold, fontStyle: "italic" }}>— {vachan.english}</p>
       </div>
     </div>
   );
@@ -909,7 +1353,14 @@ function SCard({ s, nav }) {
     <button onClick={() => nav("detail", s.id)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 22px", cursor: "pointer", textAlign: "left", width: 278, color: C.cream }}>
       <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8, fontFamily: "sans-serif" }}>{fmtDate(s.date)} · {fmtTime(s.time)}</div>
       <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{s.title}</div>
-      <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>📍 {s.city} {s.postcode}</div>
+      <div style={{ fontSize: 13, color: C.muted, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {s.city} {s.postcode}</span>
+        {s.distance !== undefined && s.distance !== null && (
+          <span style={{ color: C.gold, fontSize: 11, fontWeight: "bold", whiteSpace: "nowrap", flexShrink: 0 }}>
+            🚗 {s.distance.toFixed(1)} km
+          </span>
+        )}
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ background: `rgba(212,151,42,0.15)`, color: C.gold, fontSize: 11, padding: "3px 10px", borderRadius: 20, fontFamily: "sans-serif" }}>{left} spots left</span>
         <span style={{ fontSize: 12, color: C.muted }}>{Object.keys(s.sevas || {}).length} seva roles</span>
@@ -972,4 +1423,57 @@ function FField({ label, type = "text", v, on, ph }) {
 
 function Label({ children }) {
   return <label style={{ display: "block", fontSize: 10, color: C.muted, marginBottom: 7, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "sans-serif" }}>{children}</label>;
+}
+
+function DivineVachanBanner({ view }) {
+  const [vachan, setVachan] = useState(null);
+  
+  useEffect(() => {
+    setVachan(getRandomVachan());
+  }, [view]);
+  
+  if (!vachan) return null;
+  
+  return (
+    <div style={{
+      maxWidth: 900,
+      margin: "40px auto 20px",
+      padding: "24px 28px",
+      background: "rgba(39, 14, 3, 0.4)",
+      border: `1px dashed ${C.border}`,
+      borderRadius: 12,
+      textAlign: "center",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.2)"
+    }}>
+      <div style={{
+        fontSize: 9,
+        color: C.gold,
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        marginBottom: 8,
+        fontFamily: "sans-serif",
+        fontWeight: 700
+      }}>
+        🌹 Guruji's Divine Vachan
+      </div>
+      <p style={{
+        fontSize: 16,
+        fontStyle: "italic",
+        color: C.cream,
+        margin: "0 0 6px",
+        lineHeight: 1.5
+      }}>
+        "{vachan.punjabi}"
+      </p>
+      <p style={{
+        fontSize: 13,
+        color: C.muted,
+        margin: 0,
+        fontStyle: "italic",
+        lineHeight: 1.4
+      }}>
+        — {vachan.english}
+      </p>
+    </div>
+  );
 }
