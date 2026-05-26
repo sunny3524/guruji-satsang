@@ -506,7 +506,7 @@ exports.confirmSeva = region.https.onCall(async (data, context) => {
       throw new functions.https.HttpsError('failed-precondition', 'Seva is already confirmed for this individual');
     }
 
-    personName = reqSeva.personName;
+    personName = reqSeva.personName || 'Guest';
 
     // Check if the Seva slot is available in the Satsang
     const sevas = satsang.sevas || {};
@@ -644,7 +644,7 @@ exports.declineSeva = region.https.onCall(async (data, context) => {
       return;
     }
 
-    personName = reqSeva.personName;
+    personName = reqSeva.personName || 'Guest';
 
     // Update the status to 'declined'
     const updatedRequestedSevas = [...requestedSevas];

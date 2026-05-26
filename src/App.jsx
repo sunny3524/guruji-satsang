@@ -1141,7 +1141,7 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
                   {Object.keys(s.sevas || {}).length > 0 && (
                     <div style={{ marginBottom: 24, marginTop: 10 }}>
                       <Label style={{ marginBottom: 4, display: "block" }}>Request Seva Roles</Label>
-                      <p style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>You can assign specific Seva roles to yourself or any of your attending guests.</p>
+                      <p style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>You can assign specific Seva roles to yourself or any of your attending guests (excluding children).</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                         {Object.values(s.sevas || {}).map(sv => {
                           const m = STANDARD_SEVAS.find(x => x.id === sv.id);
@@ -1152,7 +1152,7 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
                             { id: user.uid, name: `${profile?.name || user.displayName} (Me)` }
                           ];
                           (profile?.guests || []).forEach(g => {
-                            if (selectedGuests.includes(g.id)) {
+                            if (selectedGuests.includes(g.id) && !g.isChild) {
                               options.push({ id: g.id, name: `${g.name} (Guest)` });
                             }
                           });
