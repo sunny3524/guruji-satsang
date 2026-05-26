@@ -1074,7 +1074,18 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
             </div>
           )}
           {s.status === "upcoming" ? (
-            !myAtt ? (
+            !user ? (
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "28px 32px", textAlign: "center" }}>
+                <p style={{ color: C.gold, fontSize: 16, fontWeight: 600, margin: "0 0 16px" }}>🙏 Join Guruji's Sangat to register for this Satsang</p>
+                <p style={{ color: C.muted, fontSize: 14, margin: "0 0 20px 0", lineHeight: 1.5 }}>
+                  Please login or create an account to register your attendance, select guests, and request Seva roles.
+                </p>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                  <Btn onClick={() => nav("login")}>Login →</Btn>
+                  <Btn onClick={() => nav("register")} ghost>Create Account</Btn>
+                </div>
+              </div>
+            ) : !myAtt ? (
               <div>
                 <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, marginBottom: 18 }}>Register Attendance</h3>
                 <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 28px" }}>
@@ -1368,6 +1379,24 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
                               </div>
                               <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>📞 {a.userPhone} &nbsp;|&nbsp; ✉️ {a.userEmail}</div>
                               {renderAttendeeSevaStatus(a)}
+                            </div>
+                            <div>
+                              <button
+                                onClick={() => declineAtt(a.id)}
+                                disabled={busy}
+                                style={{
+                                  background: "none",
+                                  border: `1px solid ${C.saffron}`,
+                                  color: C.saffron,
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: "bold",
+                                  padding: "6px 14px",
+                                  borderRadius: 6
+                                }}
+                              >
+                                Cancel Attendance
+                              </button>
                             </div>
                           </div>
                         </div>
