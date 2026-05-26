@@ -277,4 +277,15 @@ assert.strictEqual(mockSatsang.sevas.s1.opted, 0, "Satsang Seva slot opted shoul
 assert.strictEqual(mockSatsang.sevas.s1.enrolled.length, 0, "Alice should be unassigned from main enrolled list");
 console.log("   ✅ Success: Decoupled Seva declined and unassigned successfully!\n");
 
+// ── TEST 11: Cancel Satsang ──────────────────────────────────────────────────
+console.log("🧪 Test 11: Cancelling Satsang...");
+function mockCancelSatsang() {
+  mockSatsang.status = "cancelled";
+  return { success: true };
+}
+const cancelRes = mockCancelSatsang();
+console.log(`   - Cancellation result: success=${cancelRes.success}`);
+assert.strictEqual(mockSatsang.status, "cancelled", "Satsang status should now be cancelled");
+console.log("   ✅ Success: Satsang cancelled successfully!\n");
+
 console.log("🎉 All attendance & decoupled Seva logic unit tests completed successfully!");

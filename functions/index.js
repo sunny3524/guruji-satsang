@@ -983,6 +983,144 @@ exports.checkSatsangCapacity = region.firestore
     );
   });
 
+// ── 5a. Email Notification when a Satsang is Cancelled ───────────────────────
+exports.onSatsangCancelled = region.firestore
+  .document("satsangs/{satsangId}")
+  .onUpdate(async (change, ctx) => {
+    const before = change.before.data();
+    const after = change.after.data();
+
+    // Check if status changed to 'cancelled'
+    if (before.status !== "cancelled" && after.status === "cancelled") {
+      const { satsangId } = ctx.params;
+
+      // Fetch all attendees in the subcollection
+      const attendeesSnap = await db
+        .collection("satsangs")
+        .doc(satsangId)
+        .collection("attendees")
+        .get();
+
+      // Filter for approved / confirmed attendees
+      const confirmedAttendees = attendeesSnap.docs
+        .map(d => d.data())
+        .filter(a => a.status === "confirmed");
+
+      const organizerName = after.organizerName || "the Host";
+      const organizerEmail = after.organizerEmail;
+      const organizerPhone = after.organizerPhone;
+      let contactInfo = "";
+      if (organizerEmail && organizerPhone) {
+        contactInfo = `${organizerEmail} / ${organizerPhone}`;
+      } else if (organizerEmail) {
+        contactInfo = organizerEmail;
+      } else if (organizerPhone) {
+        contactInfo = organizerPhone;
+      }
+
+      // 1. Send cancellation email to all approved Sangat attendees
+      if (confirmedAttendees.length > 0) {
+        for (const attendee of confirmedAttendees) {
+          if (!attendee.userEmail) continue;
+
+          await sendMail(
+            attendee.userEmail,
+            `⚠️ Satsang Cancelled: ${after.title} — Jai Guruji`,
+            `
+            <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+              <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+              <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+              <h2 style="color:#d4972a;">Satsang Cancellation Notice 🙏</h2>
+              <p style="color:#c0a878; font-size: 15px; line-height: 1.7;">
+                Dear ${attendee.userName},
+              </p>
+              <p style="color:#c0a878; font-size: 15px; line-height: 1.7;">
+                We are extremely sorry to inform you that the upcoming Satsang, <strong style="color:#d4972a;">${after.title}</strong>, has been cancelled due to unforeseen circumstances. 
+                We sincerely apologize for any inconvenience this may cause to you and your family.
+              </p>
+              <div style="background:#270e03;border:1px solid #5c2a0a;border-radius:10px;padding:16px 20px;margin:20px 0;text-align:center;">
+                <h3 style="color:#d4972a;margin:0 0 8px">${after.title} (Cancelled)</h3>
+                <p style="color:#c0a878;margin:4px 0">📅 Originally scheduled: ${after.date} at ${after.time}</p>
+              </div>
+              <p style="color:#c0a878; font-size: 15px; line-height: 1.7;">
+                <strong>Next Steps:</strong><br />
+                If you have any questions, need support, or wish to connect, please feel free to reach out to the host, <strong>${organizerName}</strong>, directly at:
+                <br />
+                <strong style="color:#d4972a; font-size: 16px;">${contactInfo || "the Satsang team"}</strong>
+              </p>
+              <p style="color:#c0a878; font-size: 15px; line-height: 1.7;">
+                We pray for Guruji's blessings upon you and hope we can gather together in devotion again very soon.
+              </p>
+              <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+            </div>`
+          ).catch(console.error);
+        }
+      }
+
+      // 2. Send cancellation notice email to all Admins
+      try {
+        const adminsSnap = await db
+          .collection("users")
+          .where("role", "==", "admin")
+          .get();
+
+        const adminEmails = adminsSnap.docs
+          .map(d => d.data().email)
+          .filter(Boolean);
+
+        if (adminEmails.length > 0) {
+          const adminSubject = `🚨 Host Cancelled Satsang: ${after.title} — Admin Alert`;
+          const adminHtml = `
+            <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+              <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+              <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+              <h2 style="color:#e06b10;">🚨 Admin Alert: Satsang Cancelled by Host</h2>
+              <p style="color:#c0a878; font-size: 15px; line-height: 1.7;">
+                Dear Admin Team,
+              </p>
+              <p style="color:#c0a878; font-size: 15px; line-height: 1.7;">
+                This is to notify you that the host <strong style="color:#d4972a;">${organizerName}</strong> has cancelled their scheduled Satsang: <strong style="color:#d4972a;">${after.title}</strong>.
+              </p>
+              <div style="background:#270e03;border:1px solid #5c2a0a;border-radius:10px;padding:16px 20px;margin:20px 0;">
+                <p style="color:#c0a878;margin:4px 0"><strong>Event:</strong> ${after.title}</p>
+                <p style="color:#c0a878;margin:4px 0"><strong>Host Name:</strong> ${organizerName}</p>
+                <p style="color:#c0a878;margin:4px 0"><strong>Host Email:</strong> ${after.organizerEmail || "N/A"}</p>
+                <p style="color:#c0a878;margin:4px 0"><strong>Host Phone:</strong> ${after.organizerPhone || "N/A"}</p>
+                <p style="color:#c0a878;margin:4px 0"><strong>Original Date/Time:</strong> ${after.date} at ${after.time}</p>
+              </div>
+
+              <h3 style="color:#d4972a; margin-top: 24px;">📋 Admin Action Guidance</h3>
+              <p style="color:#c0a878; font-size: 14px; line-height: 1.7;">
+                As an admin, please review this cancellation and perform the following checks:
+              </p>
+              <ul style="color:#c0a878; font-size: 14px; line-height: 1.7; padding-left: 20px;">
+                <li style="margin-bottom: 8px;">
+                  <strong>Cancellation Frequency Check:</strong> Review the host's hosting history in the dashboard to determine if they are cancelling scheduled Satsangs frequently. Frequent cancellations can disrupt the Sangat's devotion and planning.
+                </li>
+                <li style="margin-bottom: 8px;">
+                  <strong>Host Outreach:</strong> Contact the host gently to understand if they are facing any personal difficulties or space constraints where the admin team can offer support or volunteer help.
+                </li>
+                <li style="margin-bottom: 8px;">
+                  <strong>Explain Satsang Value:</strong> Remind the host of the profound spiritual value and sacred responsibility of hosting Guruji's Satsang. Hosting is a rare blessing and opening one's home brings immense divine grace to the household and Sangat. Emphasize committing fully to scheduled dates.
+                </li>
+              </ul>
+
+              <p style="color:#9c7050;font-size:12px;margin-top:28px;">Shukrana Guruji 🙏</p>
+            </div>
+          `;
+
+          await sendMail(
+            adminEmails.join(","),
+            adminSubject,
+            adminHtml
+          ).catch(console.error);
+        }
+      } catch (err) {
+        console.error("Error in admin cancellation alert email: ", err);
+      }
+    }
+  });
+
 // ── 6. Admin: callable function to send broadcast to all users ────────────────
 exports.sendBroadcast = region.https.onCall(async (data, ctx) => {
   // Verify caller is admin

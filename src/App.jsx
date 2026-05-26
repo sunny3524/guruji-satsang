@@ -1035,6 +1035,25 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 32px" }}>
       <button onClick={() => nav("find")} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 14, padding: "0 0 20px", display: "block" }}>← Back to search</button>
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "32px 36px", marginBottom: 32 }}>
+        {s.status === "cancelled" && (
+          <div style={{
+            background: "rgba(224,107,16,0.1)",
+            border: `1px solid ${C.saffron}`,
+            color: C.saffron,
+            borderRadius: 8,
+            padding: "12px 16px",
+            marginBottom: 20,
+            fontWeight: "bold",
+            textAlign: "center",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 15
+          }}>
+            ⚠️ This Satsang has been cancelled.
+          </div>
+        )}
         <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 10, fontFamily: "sans-serif" }}>{fmtDate(s.date)} · {fmtTime(s.time)}</div>
         <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 10px" }}>{s.title}</h2>
         <div style={{ fontSize: 14, color: C.muted, marginBottom: 14 }}>📍 {s.address}, {s.city} {s.postcode}</div>
@@ -1231,7 +1250,40 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
       {/* Host / Admin Sangat Attendance Management */}
       {(isHost || isAdmin) && (
         <div style={{ marginTop: 40, borderTop: `1px solid ${C.border}`, paddingTop: 30 }}>
-          <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, marginBottom: 20 }}>Sangat Attendance & Seva Management</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, margin: 0 }}>Sangat Attendance & Seva Management</h3>
+            {s.status === "upcoming" && (
+              <button
+                onClick={async () => {
+                  if (window.confirm("Are you sure you want to cancel this Satsang? Approved attendees will be notified automatically via email. 🙏")) {
+                    setBusy(true);
+                    try {
+                      await cancelSatsang(satsangId);
+                      notify("Satsang has been cancelled. 🙏");
+                      if (onRefresh) onRefresh();
+                    } catch (e) {
+                      notify(e.message, "err");
+                    }
+                    setBusy(false);
+                  }
+                }}
+                disabled={busy}
+                style={{
+                  background: "none",
+                  border: `1px solid ${C.saffron}`,
+                  color: C.saffron,
+                  borderRadius: 8,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                ⚠️ Cancel Satsang
+              </button>
+            )}
+          </div>
 
           {/* Segmented Tab Controls */}
           <div style={{ display: "flex", gap: 16, borderBottom: `1px solid ${C.border}`, marginBottom: 24 }}>
