@@ -7,6 +7,7 @@ import {
   getAllSatsangs, updateSatsang, cancelSatsang, getAllUsers, updateUserRole,
   getAttendees, checkAttendance, removeAttendance,
   getUserAttendanceSatsangs, enrollSeva, withdrawSeva, subscribeSatsang, updateUserGuests,
+  createUserProfile,
 } from "./firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { functions } from "./firebase/config";
@@ -1840,6 +1841,45 @@ function ProfileView({ user, profile, nav, notify }) {
   const [newGuestRel, setNewGuestRel] = useState("Spouse");
   const [isChild, setIsChild] = useState(false);
   const [guestBusy, setGuestBusy] = useState(false);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", address: "", city: "", postcode: "" });
+  const [saveBusy, setSaveBusy] = useState(false);
+
+  const startEditing = () => {
+    setEditForm({
+      name: profile?.name || "",
+      phone: profile?.phone || "",
+      address: profile?.address || "",
+      city: profile?.city || "",
+      postcode: profile?.postcode || ""
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editForm.name.trim()) {
+      notify("Name is required", "err");
+      return;
+    }
+    setSaveBusy(true);
+    try {
+      await createUserProfile(user.uid, {
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim(),
+        address: editForm.address.trim(),
+        city: editForm.city.trim(),
+        postcode: editForm.postcode.trim()
+      });
+      setIsEditing(false);
+      notify("Profile updated successfully! 🙏");
+    } catch (err) {
+      console.error(err);
+      notify("Failed to update profile", "err");
+    }
+    setSaveBusy(false);
+  };
+
   const handleAddGuest = async () => {
     const trimmedName = newGuestName.trim();
     if (!trimmedName) {
@@ -1887,12 +1927,200 @@ function ProfileView({ user, profile, nav, notify }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24, marginBottom: 24 }}>
         {/* Personal Details */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, marginBottom: 18 }}>Personal Details</div>
-          {[["Name", profile?.name], ["Email", user.email], ["Phone", profile?.phone], ["City", profile?.city], ["Address", `${profile?.address || ""} ${profile?.postcode || ""}`]].map(([k, v]) => v ? (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, paddingBottom: 10, marginBottom: 10, borderBottom: `1px solid ${C.border}`, gap: 12, flexWrap: "wrap" }}>
-              <span style={{ color: C.muted }}>{k}</span><strong style={{ color: C.cream }}>{v}</strong>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.gold }}>Personal Details</div>
+            {!isEditing && (
+              <button
+                onClick={startEditing}
+                style={{
+                  background: "none",
+                  border: `1px solid ${C.gold}`,
+                  color: C.gold,
+                  borderRadius: 8,
+                  padding: "6px 14px",
+                  fontSize: 12,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
+                ✏️ Edit Profile
+              </button>
+            )}
+          </div>
+
+          {isEditing ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Name */}
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Full Name *</label>
+                <input
+                  style={{
+                    background: "none",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    color: C.cream,
+                    fontSize: 14,
+                    width: "100%",
+                    outline: "none"
+                  }}
+                  value={editForm.name}
+                  onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              {/* Email (Disabled) */}
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.muted }}>Email (Cannot be changed)</label>
+                <input
+                  style={{
+                    background: "rgba(255,255,255,0.02)",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    color: C.muted,
+                    fontSize: 14,
+                    width: "100%",
+                    outline: "none",
+                    cursor: "not-allowed"
+                  }}
+                  value={user.email}
+                  disabled
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Phone Number</label>
+                <input
+                  style={{
+                    background: "none",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    color: C.cream,
+                    fontSize: 14,
+                    width: "100%",
+                    outline: "none"
+                  }}
+                  value={editForm.phone}
+                  onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+
+              {/* Address */}
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Address</label>
+                <input
+                  style={{
+                    background: "none",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    color: C.cream,
+                    fontSize: 14,
+                    width: "100%",
+                    outline: "none"
+                  }}
+                  value={editForm.address}
+                  onChange={e => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+                />
+              </div>
+
+              {/* City and Postcode */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>City</label>
+                  <input
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 14,
+                      width: "100%",
+                      outline: "none"
+                    }}
+                    value={editForm.city}
+                    onChange={e => setEditForm(prev => ({ ...prev, city: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Postcode</label>
+                  <input
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 14,
+                      width: "100%",
+                      outline: "none"
+                    }}
+                    value={editForm.postcode}
+                    onChange={e => setEditForm(prev => ({ ...prev, postcode: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saveBusy}
+                  style={{
+                    background: C.gold,
+                    color: C.bg,
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 20px",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    flex: 1
+                  }}
+                >
+                  {saveBusy ? "Saving…" : "Save Details"}
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  disabled={saveBusy}
+                  style={{
+                    background: "none",
+                    border: `1px solid ${C.saffron}`,
+                    color: C.saffron,
+                    borderRadius: 8,
+                    padding: "10px 20px",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    flex: 1
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          ) : null)}
+          ) : (
+            <>
+              {[
+                ["Name", profile?.name],
+                ["Email", user.email],
+                ["Phone", profile?.phone],
+                ["City", profile?.city],
+                ["Address", profile?.address],
+                ["Postcode", profile?.postcode]
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, paddingBottom: 10, marginBottom: 10, borderBottom: `1px solid ${C.border}`, gap: 12, flexWrap: "wrap" }}>
+                  <span style={{ color: C.muted }}>{k}</span>
+                  <strong style={{ color: C.cream }}>{v || <span style={{ color: C.muted, fontWeight: "normal", fontStyle: "italic" }}>Not provided</span>}</strong>
+                </div>
+              ))}
+            </>
+          )}
         </div>
         {/* Managed Guests & Children */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
