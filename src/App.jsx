@@ -138,7 +138,34 @@ function AppInner() {
   const [upcoming, setUpcoming] = useState([]);
   const [heroImg] = useState(GURUJI_IMGS[Math.floor(Math.random() * GURUJI_IMGS.length)]);
   const notify = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3600); };
-  const nav = (v, p = null) => { setSel(p); setView(v); window.scrollTo({ top: 0, behavior: "smooth" }); };
+
+  // ─── Zero-Dependency Native Hash Routing Sync ──────────────────────────
+  useEffect(() => {
+    const parseHash = () => {
+      const hash = window.location.hash;
+      if (!hash || hash === "#") {
+        window.location.hash = "#/home";
+        return;
+      }
+      const pathPart = hash.startsWith("#/") ? hash.substring(2) : hash.substring(1);
+      const parts = pathPart.split("/");
+      const page = parts[0] || "home";
+      const param = parts[1] || null;
+
+      setView(page);
+      setSel(param);
+    };
+
+    window.addEventListener("hashchange", parseHash);
+    parseHash(); // Initial check on load
+
+    return () => window.removeEventListener("hashchange", parseHash);
+  }, []);
+
+  const nav = (v, p = null) => {
+    window.location.hash = p ? `#/${v}/${p}` : `#/${v}`;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const loadUpcoming = useCallback(async () => {
     try { setUpcoming(await getUpcomingSatsangs()); } catch (e) { console.error(e); }
   }, []);

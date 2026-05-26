@@ -5,14 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Guruji Satsang</title>
     <meta name="description" content="Find and host Guruji Satsangs near you. Register attendance, offer Seva, and connect with the Sangat." />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1a0800" />
+    <link rel="apple-touch-icon" href="/guruji-01.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: #1a0800; }
       button { font-family: inherit; }
     </style>
-    <script type="module" crossorigin src="/assets/index-BXrZ2ObM.js"></script>
+    <script type="module" crossorigin src="/assets/index-5TlU88oY.js"></script>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js")
+            .then(reg => console.log("Service Worker registered successfully:", reg.scope))
+            .catch(err => console.error("Service Worker registration failed:", err));
+        });
+      }
+    </script>
   </body>
 </html>
