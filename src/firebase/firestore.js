@@ -43,6 +43,10 @@ export async function updateUserRole(uid, role) {
   await updateDoc(doc(db, USERS, uid), { role, updatedAt: serverTimestamp() });
 }
 
+export async function updateUserGuests(uid, guests) {
+  await updateDoc(doc(db, USERS, uid), { guests, updatedAt: serverTimestamp() });
+}
+
 // ── Satsangs ──────────────────────────────────────────────────────────────────
 export async function createSatsang(data, organizerUid) {
   const ref = await addDoc(collection(db, SATSANGS), {
@@ -153,24 +157,33 @@ export async function checkAttendance(satsangId, userUid) {
 // }
 export async function getUserAttendanceSatsangs(userUid) {
   try {
-    // 1. Query by the internal document property field string instead of documentId()
     const q = query(
       collectionGroup(db, ATTENDEES),
       where("userUid", "==", userUid)
     );
 
     const snap = await getDocs(q);
+    const results = [];
 
-    // 2. Map out the parent satsang document references from the matched attendance records
-    const satsangIds = [...new Set(snap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean))];
+    for (const d of snap.docs) {
+      const satsangId = d.ref.parent.parent?.id;
+      if (satsangId) {
+        const satsang = await getSatsang(satsangId);
+        if (satsang) {
+          const attendanceData = d.data();
+          results.push({
+            ...satsang,
+            id: satsangId,
+            attendanceStatus: attendanceData.status || "pending",
+            attendanceGuests: attendanceData.guests || 0,
+            requestedSevas: attendanceData.requestedSevas || []
+          });
+        }
+      }
+    }
 
-    // 3. Fetch the corresponding parent Satsang metadata cards
-    const satsangs = await Promise.all(satsangIds.map(id => getSatsang(id)));
-
-    // 4. Return sorted upcoming events chronologically
-    return satsangs
-      .filter(Boolean)
-      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
+    // Return sorted upcoming events chronologically
+    return results.sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
 
   } catch (error) {
     console.error("attendance load failed", error);

@@ -7,13 +7,14 @@ import {
   updateProfile,
   onAuthStateChanged,
 } from "firebase/auth";
-import { auth } from "./config";
+import { auth, db } from "./config";
 import { createUserProfile, getUserProfile } from "./firestore";
+import { onSnapshot, doc } from "firebase/firestore";
 
-export async function registerUser({ email, password, name, phone, address, city, postcode }) {
+export async function registerUser({ email, password, name, phone, address, city, postcode, guests = [] }) {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(cred.user, { displayName: name });
-  await createUserProfile(cred.user.uid, { name, email, phone, address, city, postcode });
+  await createUserProfile(cred.user.uid, { name, email, phone, address, city, postcode, guests });
   return cred.user;
 }
 
@@ -31,12 +32,34 @@ export async function resetPassword(email) {
 }
 
 export function onAuthChange(callback) {
-  return onAuthStateChanged(auth, async (firebaseUser) => {
+  let unsubProfile = null;
+  const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (unsubProfile) {
+      unsubProfile();
+      unsubProfile = null;
+    }
+
     if (firebaseUser) {
-      const profile = await getUserProfile(firebaseUser.uid);
-      callback({ ...firebaseUser, profile });
+      unsubProfile = onSnapshot(
+        doc(db, "users", firebaseUser.uid),
+        (docSnap) => {
+          const profile = docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+          callback({ ...firebaseUser, profile });
+        },
+        (err) => {
+          console.warn("Profile listener failed, falling back to fetch:", err);
+          getUserProfile(firebaseUser.uid).then((profile) => {
+            callback({ ...firebaseUser, profile });
+          });
+        }
+      );
     } else {
       callback(null);
     }
   });
+
+  return () => {
+    if (unsubProfile) unsubProfile();
+    unsubAuth();
+  };
 }

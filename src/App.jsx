@@ -6,22 +6,19 @@ import {
   createSatsang, getUpcomingSatsangs, getSatsang, getSatsangsByOrganizer,
   getAllSatsangs, updateSatsang, cancelSatsang, getAllUsers, updateUserRole,
   getAttendees, checkAttendance, removeAttendance,
-  getUserAttendanceSatsangs, enrollSeva, withdrawSeva, subscribeSatsang,
+  getUserAttendanceSatsangs, enrollSeva, withdrawSeva, subscribeSatsang, updateUserGuests,
 } from "./firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { functions } from "./firebase/config";
 import { useAuth, AuthProvider } from "./hooks/useAuth";
 import { geocodeLocation, getDistanceKm } from "./utils/geoUtils";
 import { getRandomVachan } from "./utils/vachans";
-
 const gurujiImages = import.meta.glob("./assets/images/*.{png,jpg,jpeg,bmp,JPG,JPEG}", { eager: true });
 const GURUJI_IMGS = Object.entries(gurujiImages)
   .sort(([pathA], [pathB]) => pathA.localeCompare(pathB))
   .map(([, module]) => module.default)
   .filter(Boolean)
   .slice(0, 12); // Limit to the first 12 images for faster page load
-
-
 const STANDARD_SEVAS = [
   { id: "s1", icon: "🍲", name: "Langar Distribution Seva", desc: "Serving Langar Prashad during the satsang" },
   { id: "s2", icon: "🧑🏽‍🍳", name: "Langar Preparation Seva", desc: "Preparing Langar either in your house or host's, see details" },
@@ -33,7 +30,6 @@ const STANDARD_SEVAS = [
   { id: "s8", icon: "🧹", name: "Cleaning Seva", desc: "Pre/post event cleaning" },
   { id: "s9", icon: "👶", name: "Children Seva", desc: "Child care & quiet activities" },
 ];
-
 const GUIDELINES = [
   {
     icon: "🏠", title: "Setting Up Your Darbar", items: [
@@ -113,20 +109,17 @@ const GUIDELINES = [
     ]
   },
 ];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const today = () => new Date().toISOString().split("T")[0];
 const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const fmtTime = t => { if (!t) return ""; const [h, m] = t.split(":"); const ap = +h >= 12 ? "PM" : "AM"; return `${((+h % 12) || 12).toString().padStart(2, "0")}:${m} ${ap}`; };
 const uid = () => Math.random().toString(36).slice(2, 9);
-
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const C = {
   bg: "#1a0800", card: "#270e03", border: "#5c2a0a",
   gold: "#d4972a", saffron: "#e06b10", cream: "#f5e8d0",
   muted: "#9c7050", red: "#7a1a0a",
 };
-
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
@@ -135,7 +128,6 @@ export default function App() {
     </AuthProvider>
   );
 }
-
 function AppInner() {
   const { user, profile, loading } = useAuth();
   const [view, setView] = useState("home");
@@ -144,29 +136,23 @@ function AppInner() {
   const [toast, setToast] = useState(null);
   const [upcoming, setUpcoming] = useState([]);
   const [heroImg] = useState(GURUJI_IMGS[Math.floor(Math.random() * GURUJI_IMGS.length)]);
-
   const notify = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3600); };
-
   const nav = (v, p = null) => { setSel(p); setView(v); window.scrollTo({ top: 0, behavior: "smooth" }); };
-
   const loadUpcoming = useCallback(async () => {
     try { setUpcoming(await getUpcomingSatsangs()); } catch (e) { console.error(e); }
   }, []);
-
   useEffect(() => { loadUpcoming(); }, [loadUpcoming]);
-
   const searchTerm = search.trim().toLowerCase();
   const filtered = searchTerm
     ? upcoming.filter(s => s.city?.toLowerCase().includes(searchTerm) || s.postcode?.toLowerCase().includes(searchTerm))
     : upcoming;
-
   const isAdmin = profile?.role === "admin";
-
   const navItems = user
     ? [
       { l: "Find Satsang", v: "find" },
       { l: "Guidelines", v: "guidelines" },
       { l: "Satsang Dashboard", v: "dashboard" },
+      { l: "Profile", v: "profile" },
       ...(isAdmin ? [{ l: "⚙ Admin", v: "admin" }] : []),
       { l: "+ Host", v: "post", accent: true },
       { l: "Logout", fn: async () => { await logoutUser(); nav("home"); } },
@@ -177,18 +163,15 @@ function AppInner() {
       { l: "Login", v: "login" },
       { l: "Join Sangat", v: "register", accent: true },
     ];
-
   if (loading) return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
       <img src={GURUJI_IMGS[0]} alt="Guruji" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.gold}`, opacity: 0.8 }} onError={e => { e.target.style.display = "none"; }} />
       <p style={{ color: C.gold, fontFamily: "Georgia,serif", letterSpacing: "0.15em", fontSize: 13 }}>OM NAMAH SHIVAY…</p>
     </div>
   );
-
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,#1a0800 0%,#0f0500 100%)`, color: C.cream, fontFamily: "Georgia,'Times New Roman',serif" }}>
       <div style={{ height: 4, background: `linear-gradient(90deg,${C.red},${C.gold},${C.saffron},${C.gold},${C.red})` }} />
-
       {/* NAV */}
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 66, background: "rgba(26,8,0,0.97)", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 4, zIndex: 100, backdropFilter: "blur(12px)" }}>
         <button onClick={() => nav("home")} style={{ display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", cursor: "pointer" }}>
@@ -209,9 +192,7 @@ function AppInner() {
           ))}
         </div>
       </nav>
-
       {toast && <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: toast.type === "err" ? "#5a1010" : "#3a1800", color: C.gold, padding: "13px 28px", borderRadius: 10, fontSize: 15, fontWeight: 600, zIndex: 9999, border: `1px solid ${C.border}`, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>{toast.msg}</div>}
-
       <main>
         {view === "home" && <HomeView nav={nav} upcoming={upcoming} user={user} heroImg={heroImg} />}
         {view === "login" && <LoginView nav={nav} notify={notify} />}
@@ -221,22 +202,20 @@ function AppInner() {
         {view === "detail" && <DetailView satsangId={sel} user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}
         {view === "post" && <PostView user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}
         {view === "dashboard" && <DashboardView user={user} profile={profile} nav={nav} notify={notify} />}
+        {view === "profile" && <ProfileView user={user} profile={profile} nav={nav} notify={notify} />}
         {view === "guidelines" && <GuidelinesView />}
         {view === "admin" && isAdmin && <AdminView user={user} profile={profile} nav={nav} notify={notify} />}
       </main>
-
       {view !== "home" && view !== "guidelines" && <DivineVachanBanner view={view} />}
-
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: "28px 32px", textAlign: "center" }}>
         <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8, fontFamily: "sans-serif" }}>
           OM NAMAH SHIVAY SHIVJI SADA SAHAY · OM NAMAH SHIVAY GURUJI SADA SAHAY
         </div>
-        <div style={{ fontSize: 13, color: C.muted }}>Guruji Satsang · Built with devotion & seva 🙏</div>
+        <div style={{ fontSize: 13, color: C.muted }}>Guruji Satsang · Built with devotion & seva</div>
       </footer>
     </div>
   );
 }
-
 // ─── Home ─────────────────────────────────────────────────────────────────────
 function HomeView({ nav, upcoming, user, heroImg }) {
   const [vachan] = useState(() => getRandomVachan());
@@ -273,7 +252,6 @@ function HomeView({ nav, upcoming, user, heroImg }) {
           {upcoming.length === 0 && <p style={{ color: C.muted, fontSize: 15 }}>No upcoming satsangs yet. Be the first to host one! 🙏</p>}
         </div>
       </SectionWrap>
-
       <SectionWrap label="Guruji's Divine Vachan">
         <div style={{
           background: `linear-gradient(135deg, ${C.card} 0%, rgba(39,14,3,0.85) 100%)`,
@@ -304,7 +282,6 @@ function HomeView({ nav, upcoming, user, heroImg }) {
           </p>
         </div>
       </SectionWrap>
-
       <SectionWrap label="Guruji's Swaroops">
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {GURUJI_IMGS.map((src, i) => (
@@ -326,7 +303,6 @@ function HomeView({ nav, upcoming, user, heroImg }) {
     </div>
   );
 }
-
 // ─── Find ─────────────────────────────────────────────────────────────────────
 function FindView({ search, setSearch, nav, user, profile, upcoming }) {
   const [userCoords, setUserCoords] = useState(null);
@@ -337,7 +313,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
   const [locationLabel, setLocationLabel] = useState("");
   const [geoError, setGeoError] = useState(null);
   const [searchError, setSearchError] = useState(null);
-
   // 1. Geocode Profile Location on Mount
   useEffect(() => {
     let active = true;
@@ -346,16 +321,15 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
       const queryParts = [];
       if (profile.postcode) queryParts.push(profile.postcode);
       if (profile.city) queryParts.push(profile.city);
-      
+
       const queryStr = queryParts.join(" ").trim();
       if (!queryStr) return;
-
       setIsGeocodingProfile(true);
       try {
         const coords = await geocodeLocation(queryStr);
         if (coords && active) {
           setUserCoords(coords);
-          setLocationLabel(`profile location (${profile.city || profile.postcode})`);
+          setLocationLabel(`profile location (${profile.postcode || profile.city})`);
         }
       } catch (err) {
         console.warn("Could not geocode profile location", err);
@@ -366,7 +340,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
     initProfileLocation();
     return () => { active = false; };
   }, [profile]);
-
   // 2. Debounced Search Geocoding (600ms)
   useEffect(() => {
     const trimmed = search.trim();
@@ -376,7 +349,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
       setSearchError(null);
       return;
     }
-
     setIsGeocodingSearch(true);
     setSearchError(null);
     const delayDebounce = setTimeout(async () => {
@@ -397,20 +369,16 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
         setIsGeocodingSearch(false);
       }
     }, 600);
-
     return () => clearTimeout(delayDebounce);
   }, [search]);
-
   // 3. HTML5 Geolocation Trigger
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
       setGeoError("Geolocation is not supported by your browser.");
       return;
     }
-
     setIsLocating(true);
     setGeoError(null);
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserCoords({
@@ -436,10 +404,9 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
-
   // 4. Calculate Distance and Filter/Sort List
   const activeSearch = search.trim().toLowerCase();
-  
+
   // Create calculated list
   const calculatedSatsangs = upcoming.map(s => {
     let distance = null;
@@ -450,47 +417,41 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
     }
     return { ...s, distance };
   });
-
   // Filter list
   const filteredSatsangs = calculatedSatsangs.filter(s => {
     // If there's an invalid search error, return zero results
     if (searchError) return false;
-
     // Strict client-side date safety filter: ensure elapsed events are never shown
     const todayStr = new Date().toISOString().split("T")[0];
     if (s.date && s.date < todayStr) return false;
-
     if (!activeSearch) return true;
-    
+
     // If searchCoords is successfully resolved, we DO NOT filter the list by text matching.
     // Instead, we search ALL satsangs and sort them all by proximity!
     if (searchCoords) {
       return true;
     }
-    
+
     // Default text filter while resolving/fallback
     return s.city?.toLowerCase().includes(activeSearch) || s.postcode?.toLowerCase().includes(activeSearch);
   });
-
   // Sort list:
   // - First sort by distance if available (ascending, closest first)
   // - Then sort by date and time (ascending, chronological)
   const sortedSatsangs = [...filteredSatsangs].sort((a, b) => {
     const aHasDist = typeof a.distance === "number" && !isNaN(a.distance);
     const bHasDist = typeof b.distance === "number" && !isNaN(b.distance);
-
     if (aHasDist && bHasDist) {
       return a.distance - b.distance; // Ascending: nearest first!
     }
     if (aHasDist) return -1;
     if (bHasDist) return 1;
-    
+
     // Fallback: Chronological
     const dateComp = (a.date || "").localeCompare(b.date || "");
     if (dateComp !== 0) return dateComp;
     return (a.time || "").localeCompare(b.time || "");
   });
-
   // Render Label explaining the sequence
   let sequenceHeading = "Upcoming Satsangs";
   if (activeSearch) {
@@ -504,10 +465,9 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
   } else if (userCoords) {
     sequenceHeading = `Satsangs nearest to ${locationLabel}`;
   }
-
   return (
     <Page title="Find a Satsang" sub="Connect with the Sangat in your region">
-      
+
       {/* Geolocation, search, and sequencing control panel */}
       <div style={{
         background: C.card,
@@ -520,7 +480,7 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
         flexDirection: "column",
         gap: 16
       }}>
-        
+
         <div style={{
           display: "flex",
           gap: 12,
@@ -538,7 +498,20 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
             padding: "10px 16px",
             flex: "1 1 300px"
           }}>
-            <span style={{ fontSize: 18, opacity: 0.7 }}>🔍</span>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={C.gold}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ opacity: 0.8, flexShrink: 0 }}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             <input
               style={{
                 background: "none",
@@ -563,7 +536,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
               }} />
             )}
           </div>
-
           {/* Near Me Button */}
           <button
             onClick={handleUseCurrentLocation}
@@ -599,7 +571,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
             {isLocating ? "⏳ Finding Location…" : "📍 Near Me"}
           </button>
         </div>
-
         {/* Search Error Message */}
         {searchError && (
           <div style={{
@@ -616,7 +587,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
             <span>⚠️ {searchError}</span>
           </div>
         )}
-
         {/* Location Status Message & Info */}
         {(userCoords || geoError || isGeocodingProfile) && !activeSearch && (
           <div style={{
@@ -664,7 +634,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
           </div>
         )}
       </div>
-
       {/* Header and Results */}
       <h3 style={{
         fontSize: 20,
@@ -680,12 +649,11 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
           {sortedSatsangs.length} {sortedSatsangs.length === 1 ? "satsang" : "satsangs"} found
         </span>
       </h3>
-
       {sortedSatsangs.length === 0 ? (
         <Empty>
           <p>
-            {searchError 
-              ? "Search aborted due to invalid location input." 
+            {searchError
+              ? "Search aborted due to invalid location input."
               : `No upcoming Satsangs found${activeSearch ? ` matching "${search}"` : ""}.`}
           </p>
           {user ? (
@@ -705,7 +673,6 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
           ))}
         </div>
       )}
-
       {/* Embedded CSS animation in component or via style tag */}
       <style>{`
         @keyframes pulse {
@@ -717,68 +684,334 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
     </Page>
   );
 }
-
 // ─── Detail (live Firestore subscription) ─────────────────────────────────────
 function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
   const [s, setS] = useState(null);
   const [attendees, setAt] = useState([]);
   const [myAtt, setMyAtt] = useState(null);
-  const [guests, setGuests] = useState(0);
-  const [selSv, setSelSv] = useState([]);
+  const [selectedGuests, setSelectedGuests] = useState([]);
+  const [sevaMapping, setSevaMapping] = useState({});
   const [busy, setBusy] = useState(false);
-
+  const [activeTab, setActiveTab] = useState("attendance");
   useEffect(() => {
     if (!satsangId) return;
     // Real-time subscription
     const unsub = subscribeSatsang(satsangId, setS);
     return unsub;
   }, [satsangId]);
-
   useEffect(() => {
     if (!satsangId || !user) return;
     checkAttendance(satsangId, user.uid).then(setMyAtt);
-    getAttendees(satsangId).then(setAt);
   }, [satsangId, user]);
-
+  useEffect(() => {
+    if (!satsangId || !user || !s) return;
+    if (s.organizerUid === user.uid || profile?.role === "admin") {
+      getAttendees(satsangId).then(setAt).catch(err => console.warn("Failed fetching attendees:", err));
+    }
+  }, [satsangId, user, s, profile]);
   if (!s) return <div style={{ textAlign: "center", padding: 80, color: C.muted }}>Loading Satsang… 🙏</div>;
-
   const left = s.maxAttendees - (s.attendeeCount || 0);
-  const mySevaNames = Object.values(s.sevas || {}).filter(sv => sv.enrolled?.some(e => e.uid === user?.uid)).map(sv => STANDARD_SEVAS.find(x => x.id === sv.id)?.name);
-  const toggleSv = id => setSelSv(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const isHost = s && user && s.organizerUid === user.uid;
+  const isAdmin = profile?.role === "admin";
+  const mySevaNames = Object.values(s.sevas || {})
+    .filter(sv => sv.enrolled?.some(e => e.attendeeUid === user?.uid || e.uid === user?.uid))
+    .map(sv => STANDARD_SEVAS.find(x => x.id === sv.id)?.name)
+    .filter(Boolean);
+  const formatRequestedSevas = (reqs) => {
+    if (!Array.isArray(reqs)) return "";
+    return reqs.map(rs => {
+      if (typeof rs === "string") {
+        return STANDARD_SEVAS.find(x => x.id === rs)?.name;
+      }
+      if (rs && typeof rs === "object" && rs.sevaId) {
+        const sName = STANDARD_SEVAS.find(x => x.id === rs.sevaId)?.name || rs.sevaId;
+        const pLabel = rs.personId === user?.uid ? "Me" : rs.personName;
+        return `${sName} for ${pLabel}`;
+      }
+      return "";
+    }).filter(Boolean).join(", ");
+  };
+  const renderAttendeeSevaStatus = (a) => {
+    const reqSevas = a.requestedSevas || [];
+    if (reqSevas.length === 0) return null;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+        {reqSevas.map((rs, idx) => {
+          const sName = STANDARD_SEVAS.find(x => x.id === rs.sevaId)?.name || rs.sevaId;
+          const label = rs.personId === a.id ? rs.personName : `${rs.personName} (Guest)`;
 
+          if (a.status === 'confirmed') {
+            if (rs.status === 'pending') {
+              return (
+                <div key={idx} style={{ display: "inline-flex", background: "rgba(212,151,42,0.1)", border: `1px solid rgba(212,151,42,0.3)`, color: C.gold, fontSize: 12, padding: "6px 12px", borderRadius: 6, alignItems: "center", gap: 6, width: "fit-content" }}>
+                  ✉ Offered Seva: <strong>{sName}</strong> for {label} (Needs approval in Seva tab)
+                </div>
+              );
+            } else if (rs.status === 'confirmed') {
+              return (
+                <div key={idx} style={{ display: "inline-flex", background: "rgba(76,130,80,0.1)", border: `1px solid rgba(76,130,80,0.3)`, color: "#7db87f", fontSize: 12, padding: "6px 12px", borderRadius: 6, alignItems: "center", gap: 6, width: "fit-content" }}>
+                  ✓ Seva Confirmed: <strong>{sName}</strong> for {label}
+                </div>
+              );
+            } else if (rs.status === 'declined') {
+              return (
+                <div key={idx} style={{ display: "inline-flex", background: "rgba(224,107,16,0.05)", border: `1px solid rgba(224,107,16,0.2)`, color: C.saffron, fontSize: 12, padding: "6px 12px", borderRadius: 6, alignItems: "center", gap: 6, width: "fit-content" }}>
+                  ❌ Seva Declined: <strong>{sName}</strong> for {label}
+                </div>
+              );
+            }
+          } else {
+            // Attendance is pending/waitlisted
+            return (
+              <div key={idx} style={{ display: "inline-flex", background: "rgba(255,255,255,0.03)", border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, padding: "6px 12px", borderRadius: 6, alignItems: "center", gap: 6, width: "fit-content" }}>
+                🕒 Also offered Seva: <strong>{sName}</strong> for {label} (Reviewable upon confirming attendance)
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    );
+  };
+  const exportSevaSheet = () => {
+    // Gather all confirmed sevas
+    const confirmedSevas = [];
+    Object.values(s.sevas || {}).forEach(sv => {
+      const enrolled = sv.enrolled || [];
+      const sName = STANDARD_SEVAS.find(x => x.id === sv.id)?.name || sv.id;
+      enrolled.forEach(e => {
+        // Find attendee document to get primary member phone
+        const att = attendees.find(a => a.id === e.attendeeUid);
+        confirmedSevas.push({
+          personName: e.name,
+          sevaName: sName,
+          primaryName: att ? att.userName : e.name,
+          phone: att ? att.userPhone : ""
+        });
+      });
+    });
+    // Sort alphabetically by personName
+    confirmedSevas.sort((a, b) => a.personName.localeCompare(b.personName));
+    // Open print window
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      notify("Popup blocker prevented exporting seva sheet. Please allow popups.", "err");
+      return;
+    }
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Day-of Seva Sheet - ${s.title}</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #333; background: #fff; }
+            h1 { font-size: 24px; margin-bottom: 5px; color: #111; }
+            h2 { font-size: 14px; font-weight: normal; color: #666; margin-top: 0; margin-bottom: 30px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { text-align: left; padding: 12px 10px; border-bottom: 2px solid #ddd; font-size: 13px; text-transform: uppercase; color: #666; }
+            td { padding: 12px 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+            .checkbox { width: 20px; height: 20px; border: 1px solid #999; border-radius: 4px; display: inline-block; }
+            .header-info { margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-info">
+            <h1>🌹 Day-of Seva Allocation Sheet</h1>
+            <h2><strong>Event:</strong> ${s.title} &nbsp;|&nbsp; <strong>Date:</strong> ${s.date} at ${s.time} &nbsp;|&nbsp; <strong>Venue:</strong> ${s.address}, ${s.city}</h2>
+            <button onclick="window.print()" style="padding: 10px 20px; background: #d4972a; border: none; color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px;">Print Seva Sheet</button>
+          </div>
+          
+          ${confirmedSevas.length === 0 ? `
+            <p style="text-align: center; color: #666; padding: 40px; font-style: italic;">No confirmed Seva assignments found for this Satsang.</p>
+          ` : `
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 5%">Check-in</th>
+                  <th style="width: 30%">Sevadar Name</th>
+                  <th style="width: 30%">Seva Role</th>
+                  <th style="width: 20%">Primary Member</th>
+                  <th style="width: 15%">Phone Number</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${confirmedSevas.map(cs => `
+                  <tr>
+                    <td><div class="checkbox"></div></td>
+                    <td><strong>${cs.personName}</strong></td>
+                    <td>${cs.sevaName}</td>
+                    <td>${cs.primaryName}</td>
+                    <td>${cs.phone || '<span style="color: #ccc;">N/A</span>'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
+        </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+  const allSevaRequests = [];
+  attendees.forEach(a => {
+    const reqs = a.requestedSevas || [];
+    reqs.forEach(rs => {
+      allSevaRequests.push({
+        ...rs,
+        attendeeUid: a.id,
+        attendeeName: a.userName,
+        attendeeStatus: a.status
+      });
+    });
+  });
+  const fmtTimestamp = (ts) => {
+    if (!ts) return "";
+    const date = typeof ts.toDate === "function" ? ts.toDate() : ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+    return date.toLocaleString("en-GB", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+  const sortAttendeesByTime = (list) => {
+    return [...list].sort((a, b) => {
+      const timeA = a.registeredAt?.seconds || (a.registeredAt ? new Date(a.registeredAt).getTime() / 1000 : 0);
+      const timeB = b.registeredAt?.seconds || (b.registeredAt ? new Date(b.registeredAt).getTime() / 1000 : 0);
+      return timeA - timeB;
+    });
+  };
+  const handleSevaMapChange = (sevaId, personId) => {
+    setSevaMapping(p => ({ ...p, [sevaId]: personId }));
+  };
+  const toggleGuestSelect = (guestId) => {
+    setSelectedGuests(p => {
+      const next = p.includes(guestId) ? p.filter(id => id !== guestId) : [...p, guestId];
+      setSevaMapping(mapping => {
+        const nextMapping = { ...mapping };
+        Object.entries(nextMapping).forEach(([sId, pId]) => {
+          if (pId === guestId) {
+            delete nextMapping[sId];
+          }
+        });
+        return nextMapping;
+      });
+      return next;
+    });
+  };
   const markAtt = async () => {
     if (!user) { notify("Please login to register", "err"); nav("login"); return; }
     if (myAtt) { notify("Already registered", "err"); return; }
-    if (left < 1 + guests) { notify("Not enough spots", "err"); return; }
     setBusy(true);
     try {
+      const guestsCount = selectedGuests.length;
+      const primaryAttendee = { id: user.uid, name: profile?.name || user.displayName, isPrimary: true };
+      const guestAttendees = (profile?.guests || [])
+        .filter(g => selectedGuests.includes(g.id))
+        .map(g => ({ id: g.id, name: g.name, isPrimary: false, relationship: g.relationship }));
+      const fullAttendeesList = [primaryAttendee, ...guestAttendees];
+      const mappedSevas = Object.entries(sevaMapping)
+        .filter(([_, personId]) => !!personId)
+        .map(([sevaId, personId]) => {
+          let personName = "";
+          if (personId === user.uid) {
+            personName = profile?.name || user.displayName;
+          } else {
+            const gst = (profile?.guests || []).find(g => g.id === personId);
+            personName = gst ? gst.name : "Guest";
+          }
+          return {
+            sevaId,
+            personId,
+            personName,
+            status: "pending"
+          };
+        });
       const registerAttendanceFn = httpsCallable(functions, "registerAttendance");
       await registerAttendanceFn({
         satsangId,
-        guests,
+        guests: guestsCount,
         userName: profile?.name || user.displayName,
         userEmail: user.email,
         userPhone: profile?.phone || "",
+        requestedSevas: mappedSevas,
+        attendeesList: fullAttendeesList
       });
-      // Enroll selected sevas
-      for (const svId of selSv) {
-        const meta = STANDARD_SEVAS.find(x => x.id === svId);
-        const enrollSevaFn = httpsCallable(functions, "enrollSeva");
-        await enrollSevaFn({ satsangId, sevaId: svId, userName: profile?.name || user.displayName });
-        // Send seva confirmation email via Cloud Function
-        try {
-          const sendSevaConf = httpsCallable(functions, "sendSevaConfirmation");
-          await sendSevaConf({ userEmail: user.email, userName: profile?.name, sevaName: meta?.name, satsangTitle: s.title, satsangDate: `${s.date} at ${s.time}`, satsangAddress: `${s.address}, ${s.city}` });
-        } catch (e) { console.warn("Email fn:", e); }
-      }
-      setMyAtt({ guests });
-      setSelSv([]);
+      const isWaitlist = left < 1 + guestsCount;
+      const localState = {
+        guests: guestsCount,
+        status: isWaitlist ? "waitlisted" : "pending",
+        requestedSevas: mappedSevas,
+        attendeesList: fullAttendeesList
+      };
+      setMyAtt(localState);
+      setSevaMapping({});
+      setSelectedGuests([]);
       onRefresh();
-      notify(`Jai Guruji! Registered${guests > 0 ? ` with ${guests} guest(s)` : ""} 🙏`);
+      if (isWaitlist) {
+        notify("Jai Guruji! Placed on Waitlist (Satsang over capacity) 🙏");
+      } else {
+        notify("Jai Guruji! Attendance request submitted (pending approval) 🙏");
+      }
     } catch (e) { notify(e.message, "err"); }
     setBusy(false);
   };
-
+  const approveAtt = async (attendeeUid) => {
+    setBusy(true);
+    try {
+      const confirmAttendanceFn = httpsCallable(functions, "confirmAttendance");
+      await confirmAttendanceFn({ satsangId, attendeeUid });
+      notify("Attendance request confirmed successfully! 🙏");
+      getAttendees(satsangId).then(setAt).catch(() => { });
+      onRefresh();
+    } catch (e) {
+      notify(e.message, "err");
+    }
+    setBusy(false);
+  };
+  const declineAtt = async (attendeeUid) => {
+    setBusy(true);
+    try {
+      const declineAttendanceFn = httpsCallable(functions, "declineAttendance");
+      await declineAttendanceFn({ satsangId, attendeeUid });
+      notify("Request declined and moved to waitlist. 🙏");
+      getAttendees(satsangId).then(setAt).catch(() => { });
+      onRefresh();
+    } catch (e) {
+      notify(e.message, "err");
+    }
+    setBusy(false);
+  };
+  const handleConfirmSeva = async (attendeeUid, sevaId, personId) => {
+    setBusy(true);
+    try {
+      const confirmSevaFn = httpsCallable(functions, "confirmSeva");
+      await confirmSevaFn({ satsangId, attendeeUid, sevaId, personId });
+      notify("Seva role confirmed successfully! 🙏");
+      getAttendees(satsangId).then(setAt).catch(() => { });
+      onRefresh();
+    } catch (e) {
+      notify(e.message, "err");
+    }
+    setBusy(false);
+  };
+  const handleDeclineSeva = async (attendeeUid, sevaId, personId) => {
+    setBusy(true);
+    try {
+      const declineSevaFn = httpsCallable(functions, "declineSeva");
+      await declineSevaFn({ satsangId, attendeeUid, sevaId, personId });
+      notify("Seva request declined. 🙏");
+      getAttendees(satsangId).then(setAt).catch(() => { });
+      onRefresh();
+    } catch (e) {
+      notify(e.message, "err");
+    }
+    setBusy(false);
+  };
   const doEnrollSeva = async (svId) => {
     if (!user) { notify("Please login first", "err"); nav("login"); return; }
     const sv = Object.values(s.sevas || {}).find(x => x.id === svId);
@@ -797,7 +1030,6 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
     } catch (e) { notify(e.message, "err"); }
     setBusy(false);
   };
-
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 32px" }}>
       <button onClick={() => nav("find")} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 14, padding: "0 0 20px", display: "block" }}>← Back to search</button>
@@ -820,66 +1052,511 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
           {s.organizerPhone && <> · {s.organizerPhone}</>}
         </div>}
       </div>
-
-      {/* Seva */}
-      <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, marginBottom: 18 }}>🙏 Seva Opportunities</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(172px,1fr))", gap: 14, marginBottom: 40 }}>
-        {Object.entries(s.sevas || {}).map(([svId, sv]) => {
-          const m = STANDARD_SEVAS.find(x => x.id === sv.id);
-          const enrolled = sv.enrolled || [];
-          const opted = sv.opted || 0;
-          const full = opted >= sv.needed;
-          const mine = user && enrolled.some(e => e.uid === user.uid);
-          return (
-            <div key={sv.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 16px", display: "flex", flexDirection: "column", gap: 6, opacity: full && !mine ? 0.55 : 1 }}>
-              <div style={{ fontSize: 28 }}>{m?.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: C.cream }}>{m?.name}</div>
-              <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, flexGrow: 1 }}>{m?.desc}</div>
-              <div style={{ fontSize: 12, color: C.gold, fontFamily: "sans-serif" }}>Needed: {sv.needed} · Opted: {opted}</div>
-              {mine
-                ? <div style={{ color: "#c8a04a", fontSize: 12, fontWeight: 700, marginTop: 4 }}>✓ You're enrolled</div>
-                : <button onClick={() => doEnrollSeva(sv.id)} disabled={full || busy} style={{ marginTop: 6, background: full ? C.border : C.gold, color: full ? C.muted : C.bg, border: "none", cursor: full ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 700, padding: "7px 14px", borderRadius: 6 }}>{full ? "Full" : "Offer Seva"}</button>}
-            </div>
-          );
-        })}
-      </div>
-
       {/* Attendance */}
-      {!myAtt ? (
-        <div>
-          <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, marginBottom: 18 }}>📋 Register Attendance</h3>
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 28px" }}>
-            <Label>Guests (excluding yourself)</Label>
-            <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 24 }}>
-              <button onClick={() => setGuests(Math.max(0, guests - 1))} style={{ width: 36, height: 36, borderRadius: "50%", background: "none", border: `1px solid ${C.border}`, color: C.cream, fontSize: 20, cursor: "pointer" }}>−</button>
-              <span style={{ fontSize: 28, fontWeight: 700, color: C.gold, width: 36, textAlign: "center" }}>{guests}</span>
-              <button onClick={() => setGuests(guests + 1)} style={{ width: 36, height: 36, borderRadius: "50%", background: "none", border: `1px solid ${C.border}`, color: C.cream, fontSize: 20, cursor: "pointer" }}>+</button>
+      {!isHost && (
+        <>
+          {s.status !== "upcoming" && (
+            <div style={{
+              background: s.status === "completed" ? "rgba(245,232,208,0.05)" : "rgba(224,107,16,0.05)",
+              border: `1px solid ${s.status === "completed" ? "rgba(245,232,208,0.3)" : C.saffron}`,
+              borderRadius: 12,
+              padding: "20px 24px",
+              color: s.status === "completed" ? "#f5e8d0" : C.saffron,
+              fontSize: 16,
+              fontWeight: 600,
+              textAlign: "center",
+              marginBottom: 20
+            }}>
+              {s.status === "completed"
+                ? <>🌹 This Satsang has concluded. Registrations are closed.</>
+                : <>⚠️ This Satsang has been cancelled. Registrations are closed.</>
+              }
             </div>
-            <Label>Also offer Seva? (optional)</Label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 }}>
-              {Object.values(s.sevas || {}).map(sv => {
-                const m = STANDARD_SEVAS.find(x => x.id === sv.id);
-                const full = (sv.opted || 0) >= sv.needed;
-                const on = selSv.includes(sv.id);
-                return <button key={sv.id} disabled={full} onClick={() => !full && toggleSv(sv.id)}
-                  style={{ background: on ? `rgba(212,151,42,0.15)` : "none", border: `1px solid ${on ? C.gold : C.border}`, borderRadius: 20, padding: "6px 14px", color: on ? C.gold : C.muted, fontSize: 13, cursor: full ? "default" : "pointer" }}>
-                  {m?.icon} {m?.name}{full ? " (full)" : ""}
-                </button>;
-              })}
-            </div>
-            <Btn onClick={markAtt} disabled={busy} full>{busy ? "Registering…" : "Register Attendance →"}</Btn>
+          )}
+          {s.status === "upcoming" ? (
+            !myAtt ? (
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, marginBottom: 18 }}>Register Attendance</h3>
+                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 28px" }}>
+                  <Label style={{ marginBottom: 10, display: "block" }}>Select Attending Guests</Label>
+                  {(!profile?.guests || profile.guests.length === 0) ? (
+                    <div style={{ background: "rgba(212,151,42,0.03)", border: `1px dashed rgba(212,151,42,0.25)`, borderRadius: 10, padding: "16px 20px", marginBottom: 20 }}>
+                      <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.6, margin: "0 0 10px", fontStyle: "italic" }}>
+                        🙏 Want to bring someone along? Satsang is always more beautiful when shared with loved ones. If you would like to bring family, children, or friends along, please register them in your Profile first and then select them here.
+                      </p>
+                      <button
+                        onClick={() => nav("profile")}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: C.gold,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          padding: 0,
+                          textDecoration: "underline"
+                        }}
+                      >
+                        👉 Manage Guests in Profile
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+                        {profile.guests.map(g => {
+                          const isSelected = selectedGuests.includes(g.id);
+                          return (
+                            <label key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", color: isSelected ? C.cream : C.muted, fontSize: 14, transition: "color 0.2s" }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleGuestSelect(g.id)}
+                                style={{ accentColor: C.gold, cursor: "pointer" }}
+                              />
+                              <strong>{g.name}</strong> <span style={{ fontSize: 12, color: C.muted }}>({g.relationship})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div style={{ fontSize: 12, color: C.muted, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid rgba(255,255,255,0.03)`, paddingTop: 10 }}>
+                        <span>✨ You can always add or update your regular guests in your Profile page.</span>
+                        <button
+                          onClick={() => nav("profile")}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: C.gold,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            padding: 0,
+                            textDecoration: "underline"
+                          }}
+                        >
+                          Manage Guests
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {Object.keys(s.sevas || {}).length > 0 && (
+                    <div style={{ marginBottom: 24, marginTop: 10 }}>
+                      <Label style={{ marginBottom: 4, display: "block" }}>Request Seva Roles</Label>
+                      <p style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>You can assign specific Seva roles to yourself or any of your attending guests.</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {Object.values(s.sevas || {}).map(sv => {
+                          const m = STANDARD_SEVAS.find(x => x.id === sv.id);
+                          const full = (sv.opted || 0) >= sv.needed;
+                          const selectedPersonId = sevaMapping[sv.id] || "";
+
+                          const options = [
+                            { id: user.uid, name: `${profile?.name || user.displayName} (Me)` }
+                          ];
+                          (profile?.guests || []).forEach(g => {
+                            if (selectedGuests.includes(g.id)) {
+                              options.push({ id: g.id, name: `${g.name} (Guest)` });
+                            }
+                          });
+                          return (
+                            <div key={sv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.01)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", flexWrap: "wrap", gap: 10 }}>
+                              <div>
+                                <span style={{ color: C.cream, fontSize: 14, fontWeight: 600 }}>{m?.icon} {m?.name}</span>
+                                <span style={{ color: C.muted, fontSize: 12, marginLeft: 8 }}>({sv.opted || 0} of {sv.needed} filled)</span>
+                              </div>
+                              <select
+                                disabled={full && !selectedPersonId}
+                                value={selectedPersonId}
+                                onChange={(e) => handleSevaMapChange(sv.id, e.target.value)}
+                                style={{
+                                  background: C.bg,
+                                  border: `1px solid ${C.border}`,
+                                  color: selectedPersonId ? C.gold : C.muted,
+                                  padding: "6px 10px",
+                                  borderRadius: 6,
+                                  fontSize: 13,
+                                  cursor: "pointer",
+                                  outline: "none"
+                                }}
+                              >
+                                <option value="">-- No Seva --</option>
+                                {options.map(opt => (
+                                  <option key={opt.id} value={opt.id}>{opt.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {left <= 0 && <div style={{ color: C.saffron, fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 6 }}>⚠️ Note: This Satsang is currently over capacity. Registering will place you on the Waitlist.</div>}
+                  <Btn onClick={markAtt} disabled={busy} full>{busy ? "Registering…" : "Register Attendance →"}</Btn>
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: myAtt.status === "confirmed" ? "rgba(76,130,80,0.1)" : myAtt.status === "waitlisted" ? "rgba(224,107,16,0.1)" : "rgba(212,151,42,0.1)", border: `1px solid ${myAtt.status === "confirmed" ? "rgba(76,130,80,0.35)" : myAtt.status === "waitlisted" ? "rgba(224,107,16,0.3)" : "rgba(212,151,42,0.35)"}`, borderRadius: 10, padding: "18px 24px", color: myAtt.status === "confirmed" ? "#7db87f" : myAtt.status === "waitlisted" ? C.saffron : C.gold, fontSize: 16, fontWeight: 600 }}>
+                {myAtt.status === "confirmed" && <>✓ Attendance Confirmed! Shukrana Guruji 🙏</>}
+                {myAtt.status === "waitlisted" && <>⚠️ Waitlisted (Satsang is currently over capacity. Your request has been placed on the Waitlist.)</>}
+                {(!myAtt.status || myAtt.status === "pending") && <>⏳ Attendance Pending Host Approval</>}
+                {myAtt.guests > 0 ? ` (with ${myAtt.guests} guest(s))` : ""}
+                {mySevaNames.length > 0 && ` · Seva Confirmed: ${mySevaNames.join(", ")}`}
+                {(!myAtt.status || myAtt.status === "pending" || myAtt.status === "waitlisted") && myAtt.requestedSevas?.length > 0 && ` · Requested Seva: ${formatRequestedSevas(myAtt.requestedSevas)}`}
+              </div>
+            )
+          ) : (
+            myAtt && (
+              <div style={{ background: myAtt.status === "confirmed" ? "rgba(76,130,80,0.1)" : myAtt.status === "waitlisted" ? "rgba(224,107,16,0.1)" : "rgba(212,151,42,0.1)", border: `1px solid ${myAtt.status === "confirmed" ? "rgba(76,130,80,0.35)" : myAtt.status === "waitlisted" ? "rgba(224,107,16,0.3)" : "rgba(212,151,42,0.35)"}`, borderRadius: 10, padding: "18px 24px", color: myAtt.status === "confirmed" ? "#7db87f" : myAtt.status === "waitlisted" ? C.saffron : C.gold, fontSize: 16, fontWeight: 600 }}>
+                {myAtt.status === "confirmed" && <>✓ Attendance Confirmed! Shukrana Guruji 🙏</>}
+                {myAtt.status === "waitlisted" && <>⚠️ Waitlisted (Satsang is currently over capacity. Your request has been placed on the Waitlist.)</>}
+                {(!myAtt.status || myAtt.status === "pending") && <>⏳ Attendance Pending Host Approval</>}
+                {myAtt.guests > 0 ? ` (with ${myAtt.guests} guest(s))` : ""}
+                {mySevaNames.length > 0 && ` · Seva Confirmed: ${mySevaNames.join(", ")}`}
+                {(!myAtt.status || myAtt.status === "pending" || myAtt.status === "waitlisted") && myAtt.requestedSevas?.length > 0 && ` · Requested Seva: ${formatRequestedSevas(myAtt.requestedSevas)}`}
+              </div>
+            )
+          )}
+        </>
+      )}
+      {/* Host / Admin Sangat Attendance Management */}
+      {(isHost || isAdmin) && (
+        <div style={{ marginTop: 40, borderTop: `1px solid ${C.border}`, paddingTop: 30 }}>
+          <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, marginBottom: 20 }}>Sangat Attendance & Seva Management</h3>
+
+          {/* Segmented Tab Controls */}
+          <div style={{ display: "flex", gap: 16, borderBottom: `1px solid ${C.border}`, marginBottom: 24 }}>
+            <button
+              onClick={() => setActiveTab("attendance")}
+              style={{
+                background: "none",
+                border: "none",
+                borderBottom: activeTab === "attendance" ? `2px solid ${C.gold}` : "2px solid transparent",
+                color: activeTab === "attendance" ? C.gold : C.muted,
+                padding: "10px 16px",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                outline: "none"
+              }}
+            >
+              Attendance Registry
+            </button>
+            <button
+              onClick={() => setActiveTab("seva")}
+              style={{
+                background: "none",
+                border: "none",
+                borderBottom: activeTab === "seva" ? `2px solid ${C.gold}` : "2px solid transparent",
+                color: activeTab === "seva" ? C.gold : C.muted,
+                padding: "10px 16px",
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                outline: "none"
+              }}
+            >
+              Seva Registry
+            </button>
           </div>
-        </div>
-      ) : (
-        <div style={{ background: "rgba(212,151,42,0.1)", border: `1px solid rgba(212,151,42,0.35)`, borderRadius: 10, padding: "18px 24px", color: C.gold, fontSize: 16, fontWeight: 600 }}>
-          ✓ You are registered{myAtt.guests > 0 ? ` with ${myAtt.guests} guest(s)` : ""}
-          {mySevaNames.length > 0 && ` · Seva: ${mySevaNames.join(", ")}`}
+
+          {/* TAB A: Attendance Registry */}
+          {activeTab === "attendance" && (
+            <div>
+              {/* 1. Pending Requests */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px", marginBottom: 20 }}>
+                <h4 style={{ fontSize: 15, fontWeight: 700, color: C.gold, margin: "0 0 12px", display: "flex", justifyContent: "space-between" }}>
+                  <span>⏳ Pending Requests</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{attendees.filter(a => a.status === "pending" || !a.status).length} pending</span>
+                </h4>
+                {attendees.filter(a => a.status === "pending" || !a.status).length === 0 ? (
+                  <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>No pending requests.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {sortAttendeesByTime(attendees.filter(a => a.status === "pending" || !a.status)).map(a => {
+                      const guestNamesText = a.attendeesList && a.attendeesList.filter(p => !p.isPrimary).map(p => p.name).join(", ");
+                      return (
+                        <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid rgba(92,42,10,0.25)`, paddingBottom: 12, flexWrap: "wrap", gap: 10 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                              <strong style={{ color: C.cream, fontSize: 14 }}>{a.userName}</strong>
+                              <span style={{ color: C.muted, fontSize: 12 }}>
+                                ({a.guests} guest(s){guestNamesText ? `: ${guestNamesText}` : ""})
+                              </span>
+                              <span style={{ color: C.muted, fontSize: 11, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "sans-serif" }}>
+                                🕒 Applied: {fmtTimestamp(a.registeredAt)}
+                              </span>
+                            </div>
+                            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>📞 {a.userPhone} &nbsp;|&nbsp; ✉️ {a.userEmail}</div>
+                            {renderAttendeeSevaStatus(a)}
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => approveAtt(a.id)} disabled={busy} style={{ background: C.gold, color: C.bg, border: "none", cursor: "pointer", fontSize: 12, fontWeight: "bold", padding: "6px 14px", borderRadius: 6 }}>
+                              Approve
+                            </button>
+                            <button onClick={() => declineAtt(a.id)} disabled={busy} style={{ background: "none", border: `1px solid ${C.saffron}`, color: C.saffron, cursor: "pointer", fontSize: 12, fontWeight: "bold", padding: "6px 14px", borderRadius: 6 }}>
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {/* 2. Waitlisted Requests */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px", marginBottom: 20 }}>
+                <h4 style={{ fontSize: 15, fontWeight: 700, color: C.saffron, margin: "0 0 12px", display: "flex", justifyContent: "space-between" }}>
+                  <span>⚠️ Waitlisted Sangat</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{attendees.filter(a => a.status === "waitlisted").length} waitlisted</span>
+                </h4>
+                {attendees.filter(a => a.status === "waitlisted").length === 0 ? (
+                  <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>No waitlisted requests.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {sortAttendeesByTime(attendees.filter(a => a.status === "waitlisted")).map(a => {
+                      const guestNamesText = a.attendeesList && a.attendeesList.filter(p => !p.isPrimary).map(p => p.name).join(", ");
+                      return (
+                        <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid rgba(92,42,10,0.25)`, paddingBottom: 12, flexWrap: "wrap", gap: 10 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                              <strong style={{ color: C.cream, fontSize: 14 }}>{a.userName}</strong>
+                              <span style={{ color: C.muted, fontSize: 12 }}>
+                                ({a.guests} guest(s){guestNamesText ? `: ${guestNamesText}` : ""})
+                              </span>
+                              <span style={{ color: C.muted, fontSize: 11, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "sans-serif" }}>
+                                🕒 Applied: {fmtTimestamp(a.registeredAt)}
+                              </span>
+                            </div>
+                            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>📞 {a.userPhone} &nbsp;|&nbsp; ✉️ {a.userEmail}</div>
+                            {renderAttendeeSevaStatus(a)}
+                          </div>
+                          <div>
+                            <button onClick={() => approveAtt(a.id)} disabled={busy} style={{ background: C.gold, color: C.bg, border: "none", cursor: "pointer", fontSize: 12, fontWeight: "bold", padding: "6px 14px", borderRadius: 6 }}>
+                              Confirm
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {/* 3. Confirmed Sangat */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px" }}>
+                <h4 style={{ fontSize: 15, fontWeight: 700, color: "#7db87f", margin: "0 0 12px", display: "flex", justifyContent: "space-between" }}>
+                  <span>✓ Confirmed Sangat</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{attendees.filter(a => a.status === "confirmed").length} confirmed</span>
+                </h4>
+                {attendees.filter(a => a.status === "confirmed").length === 0 ? (
+                  <p style={{ color: C.muted, fontSize: 14, margin: 0 }}>No confirmed attendees yet.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {sortAttendeesByTime(attendees.filter(a => a.status === "confirmed")).map(a => {
+                      const guestNamesText = a.attendeesList && a.attendeesList.filter(p => !p.isPrimary).map(p => p.name).join(", ");
+                      return (
+                        <div key={a.id} style={{ borderBottom: `1px solid rgba(92,42,10,0.25)`, paddingBottom: 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                                <strong style={{ color: C.cream, fontSize: 14 }}>{a.userName}</strong>
+                                <span style={{ color: C.muted, fontSize: 12 }}>
+                                  ({a.guests} guest(s){guestNamesText ? `: ${guestNamesText}` : ""})
+                                </span>
+                                <span style={{ color: C.muted, fontSize: 11, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "sans-serif" }}>
+                                  🕒 Applied: {fmtTimestamp(a.registeredAt)}
+                                </span>
+                              </div>
+                              <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>📞 {a.userPhone} &nbsp;|&nbsp; ✉️ {a.userEmail}</div>
+                              {renderAttendeeSevaStatus(a)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* TAB B: Seva Registry */}
+          {activeTab === "seva" && (
+            <div>
+              {/* Summary of Roles */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16, marginBottom: 24 }}>
+                {Object.values(s.sevas || {}).map(sv => {
+                  const m = STANDARD_SEVAS.find(x => x.id === sv.id);
+                  const filled = sv.opted || 0;
+                  const needed = sv.needed || 0;
+                  const isFull = filled >= needed;
+                  return (
+                    <div key={sv.id} style={{ background: C.card, border: `1px solid ${isFull ? "rgba(76,130,80,0.3)" : C.border}`, borderRadius: 10, padding: "14px 18px", position: "relative" }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.cream, marginBottom: 4 }}>
+                        {m?.icon} {m?.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: isFull ? "#7db87f" : C.muted }}>
+                        {filled} of {needed} Confirmed
+                      </div>
+                      {isFull && <span style={{ position: "absolute", top: 12, right: 12, fontSize: 10, background: "rgba(76,130,80,0.15)", color: "#7db87f", padding: "2px 6px", borderRadius: 4, fontFamily: "sans-serif" }}>FULL</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Master Seva Requests Table */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 28px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+                  <h4 style={{ fontSize: 16, fontWeight: 700, color: C.gold, margin: 0 }}>Seva Allocation Registry</h4>
+                  <button
+                    onClick={exportSevaSheet}
+                    style={{
+                      background: "rgba(212,151,42,0.1)",
+                      border: `1px solid ${C.gold}`,
+                      color: C.gold,
+                      padding: "6px 14px",
+                      borderRadius: 6,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      transition: "all 0.2s"
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = "rgba(212,151,42,0.2)"}
+                    onMouseLeave={(e) => e.target.style.background = "rgba(212,151,42,0.1)"}
+                  >
+                    📥 Export Seva Sheet
+                  </button>
+                </div>
+                {allSevaRequests.length === 0 ? (
+                  <p style={{ color: C.muted, fontSize: 14, margin: 0, textAlign: "center", padding: "20px 0" }}>No Seva requests have been made for this Satsang.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {allSevaRequests.map((req, idx) => {
+                      const sName = STANDARD_SEVAS.find(x => x.id === req.sevaId)?.name || req.sevaId;
+                      const label = req.personId === req.attendeeUid ? req.personName : `${req.personName} (Guest of ${req.attendeeName})`;
+
+                      const isAttendanceConfirmed = req.attendeeStatus === 'confirmed';
+                      const isSevaConfirmed = req.status === 'confirmed';
+                      const isSevaDeclined = req.status === 'declined';
+                      const isSevaPending = req.status === 'pending' || !req.status;
+                      return (
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid rgba(92,42,10,0.25)`, paddingBottom: 12, flexWrap: "wrap", gap: 12 }}>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                              <strong style={{ color: C.cream, fontSize: 14 }}>{label}</strong>
+                              <span style={{
+                                background: isAttendanceConfirmed ? "rgba(76,130,80,0.15)" : "rgba(224,107,16,0.15)",
+                                color: isAttendanceConfirmed ? "#7db87f" : C.saffron,
+                                fontSize: 10,
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                                fontFamily: "sans-serif",
+                                fontWeight: 600
+                              }}>
+                                {isAttendanceConfirmed ? "✓ Attendance Confirmed" : "⏳ Attendance Pending"}
+                              </span>
+                            </div>
+                            <div style={{ color: C.gold, fontSize: 13, marginTop: 4, fontWeight: 500 }}>
+                              Role: {sName}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                            <span style={{
+                              color: isSevaConfirmed ? "#7db87f" : isSevaDeclined ? C.saffron : C.gold,
+                              fontSize: 12,
+                              fontWeight: 600
+                            }}>
+                              {isSevaConfirmed ? "✓ Confirmed" : isSevaDeclined ? "❌ Declined" : "⏳ Pending Approval"}
+                            </span>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              {isSevaPending && (
+                                <>
+                                  <button
+                                    onClick={() => handleConfirmSeva(req.attendeeUid, req.sevaId, req.personId)}
+                                    disabled={busy || !isAttendanceConfirmed}
+                                    style={{
+                                      background: isAttendanceConfirmed ? C.gold : C.muted,
+                                      color: C.bg,
+                                      border: "none",
+                                      cursor: isAttendanceConfirmed ? "pointer" : "not-allowed",
+                                      fontSize: 12,
+                                      fontWeight: "bold",
+                                      padding: "6px 14px",
+                                      borderRadius: 6,
+                                      opacity: isAttendanceConfirmed ? 1 : 0.5
+                                    }}
+                                    title={!isAttendanceConfirmed ? "Confirm attendance first to allocate" : ""}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeclineSeva(req.attendeeUid, req.sevaId, req.personId)}
+                                    disabled={busy}
+                                    style={{
+                                      background: "none",
+                                      border: `1px solid ${C.saffron}`,
+                                      color: C.saffron,
+                                      cursor: "pointer",
+                                      fontSize: 12,
+                                      fontWeight: "bold",
+                                      padding: "6px 14px",
+                                      borderRadius: 6
+                                    }}
+                                  >
+                                    Decline
+                                  </button>
+                                </>
+                              )}
+                              {isSevaConfirmed && (
+                                <button
+                                  onClick={() => handleDeclineSeva(req.attendeeUid, req.sevaId, req.personId)}
+                                  disabled={busy}
+                                  style={{
+                                    background: "none",
+                                    border: `1px solid ${C.saffron}`,
+                                    color: C.saffron,
+                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    fontWeight: "bold",
+                                    padding: "6px 14px",
+                                    borderRadius: 6
+                                  }}
+                                >
+                                  Unassign
+                                </button>
+                              )}
+                              {isSevaDeclined && (
+                                <button
+                                  onClick={() => handleConfirmSeva(req.attendeeUid, req.sevaId, req.personId)}
+                                  disabled={busy || !isAttendanceConfirmed}
+                                  style={{
+                                    background: isAttendanceConfirmed ? C.gold : C.muted,
+                                    color: C.bg,
+                                    border: "none",
+                                    cursor: isAttendanceConfirmed ? "pointer" : "not-allowed",
+                                    fontSize: 12,
+                                    fontWeight: "bold",
+                                    padding: "6px 14px",
+                                    borderRadius: 6,
+                                    opacity: isAttendanceConfirmed ? 1 : 0.5
+                                  }}
+                                  title={!isAttendanceConfirmed ? "Confirm attendance first to allocate" : ""}
+                                >
+                                  Re-approve
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
-
 // ─── Post ─────────────────────────────────────────────────────────────────────
 function PostView({ user, profile, nav, notify, onRefresh }) {
   const [f, setF] = useState({ title: "", city: "", postcode: "", address: "", date: "", time: "", maxAttendees: 100, description: "" });
@@ -890,19 +1567,28 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
   });
   const [busy, setBusy] = useState(false);
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }));
-
+  // Get current date in London timezone for restricting date input
+  const ukTimeStr = new Date().toLocaleString("sv-SE", { timeZone: "Europe/London" });
+  const currentDate = ukTimeStr.replace(",", "").trim().split(/\s+/)[0];
   if (!user) return <Empty><p>Please login to host a Satsang.</p><Btn onClick={() => nav("login")}>Login →</Btn></Empty>;
-
   const toggleSv = id => setChosenSv(p => p.find(x => x.id === id) ? p.filter(x => x.id !== id) : [...p, { id, needed: 2, confirmed: 0 }]);
   const setNd = (id, v) => setChosenSv(p => p.map(x => x.id === id ? { ...x, needed: +v, confirmed: Math.min(x.confirmed || 0, +v) } : x));
-
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem("guruji.showSevaPanel", showSevaPanel ? "true" : "false");
   }, [showSevaPanel]);
-
   const submit = async () => {
     if (!f.title || !f.city || !f.address || !f.date || !f.time) { notify("Please fill all required fields", "err"); return; }
+    // Date/time elapsed validation
+    const checkTimeStr = new Date().toLocaleString("sv-SE", { timeZone: "Europe/London" });
+    const cleanStr = checkTimeStr.replace(",", "");
+    const parts = cleanStr.trim().split(/\s+/);
+    const checkDate = parts[0]; // "YYYY-MM-DD"
+    const checkTime = parts[1] ? parts[1].substring(0, 5) : ""; // "HH:MM"
+    if (f.date < checkDate || (f.date === checkDate && f.time < checkTime)) {
+      notify("Cannot host a Satsang in the past. Please select a future date and time.", "err");
+      return;
+    }
     setBusy(true);
     try {
       // Geocode city and postcode for physical coordinates
@@ -920,7 +1606,6 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
       } catch (ge) {
         console.warn("Geocoding during event creation failed:", ge);
       }
-
       const sevas = chosenSv.reduce((acc, sv) => ({
         ...acc,
         [sv.id]: { id: sv.id, needed: sv.needed, opted: 0, confirmed: sv.confirmed || 0, enrolled: [] }
@@ -939,7 +1624,6 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
     } catch (e) { notify(e.message, "err"); }
     setBusy(false);
   };
-
   return (
     <FWrap title="Host a Satsang" sub="Open your home to Guruji's Sangat">
       <FField label="Satsang Title *" v={f.title} on={set("title")} ph="e.g. Shivratri Satsang" />
@@ -950,7 +1634,7 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
         <FField label="Postcode" v={f.postcode} on={set("postcode")} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <FField label="Date *" type="date" v={f.date} on={set("date")} />
+        <FField label="Date *" type="date" v={f.date} on={set("date")} min={currentDate} />
         <FField label="Time *" type="time" v={f.time} on={set("time")} />
       </div>
       <FField label="Max Attendees *" type="number" v={f.maxAttendees} on={set("maxAttendees")} />
@@ -990,15 +1674,12 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
     </FWrap>
   );
 }
-
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 function DashboardView({ user, profile, nav, notify }) {
   const [hosted, setHosted] = useState([]);
   const [attending, setAttending] = useState([]);
-
   useEffect(() => {
     if (!user?.uid) return;
-
     // Load Satsangs hosted by the user
     getSatsangsByOrganizer(user.uid)
       .then(hostedList => {
@@ -1008,7 +1689,6 @@ function DashboardView({ user, profile, nav, notify }) {
         console.error("hosted load failed", err);
         setHosted([]);
       });
-
     getUserAttendanceSatsangs(user.uid)
       .then(attended => {
         const sorted = attended
@@ -1021,49 +1701,68 @@ function DashboardView({ user, profile, nav, notify }) {
         setAttending([]);
       });
   }, [user]);
-
   if (!user) return <Empty><Btn onClick={() => nav("login")}>Login to view dashboard →</Btn></Empty>;
-
+  const upcomingHosted = hosted.filter(s => s.status === "upcoming");
+  const upcomingAttending = attending.filter(s => s.status === "upcoming");
+  const completedHosted = hosted.filter(s => s.status === "completed").map(s => ({ ...s, role: "Host" }));
+  const completedAttending = attending.filter(s => s.status === "completed" && s.attendanceStatus !== "waitlisted").map(s => ({ ...s, role: "Sangat" }));
+  const completedMap = new Map();
+  completedHosted.forEach(s => completedMap.set(s.id, s));
+  completedAttending.forEach(s => {
+    if (completedMap.has(s.id)) {
+      completedMap.set(s.id, { ...completedMap.get(s.id), role: "Host & Sangat" });
+    } else {
+      completedMap.set(s.id, s);
+    }
+  });
+  const completed = Array.from(completedMap.values())
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.time || "").localeCompare(a.time || ""));
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 32px" }}>
       <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 6px" }}>Satsang Dashboard</h2>
-      <p style={{ color: C.muted, marginBottom: 32 }}>View your profile, hosted satsangs, and satsangs you are attending or serving seva.</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 40 }}>
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.cream, marginBottom: 18 }}>👤 My Profile</div>
-          {[["Name", profile?.name], ["Email", user.email], ["Phone", profile?.phone], ["City", profile?.city], ["Address", `${profile?.address || ""} ${profile?.postcode || ""}`]].map(([k, v]) => v ? (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, paddingBottom: 10, marginBottom: 10, borderBottom: `1px solid ${C.border}`, gap: 12, flexWrap: "wrap" }}>
-              <span style={{ color: C.muted }}>{k}</span><strong style={{ color: C.cream }}>{v}</strong>
-            </div>
-          ) : null)}
-        </div>
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: C.cream, marginBottom: 18 }}>📊 Summary</div>
+      <p style={{ color: C.muted, marginBottom: 32 }}>View your hosted satsangs, and satsangs you are attending or serving seva.</p>
+
+      {/* Sangat Summary Card */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px", marginBottom: 32 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, marginBottom: 18 }}>Sangat Summary</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 30, marginBottom: 20 }}>
           {[["Satsangs hosted", hosted.length], ["Seva roles active", attending.reduce((a, s) => a + Object.values(s.sevas || {}).filter(sv => (sv.enrolled || []).some(e => e.uid === user.uid)).length, 0)]].map(([k, v]) => (
-            <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 15, paddingBottom: 10, marginBottom: 10, borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ color: C.muted }}>{k}</span><strong style={{ color: C.gold, fontSize: 22 }}>{v}</strong>
+            <div key={k} style={{ display: "flex", flexDirection: "column", gap: 6, borderLeft: `3px solid ${C.gold}`, paddingLeft: 16 }}>
+              <span style={{ color: C.muted, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "sans-serif" }}>{k}</span>
+              <strong style={{ color: C.cream, fontSize: 32, fontWeight: 750 }}>{v}</strong>
             </div>
           ))}
-          <div style={{ marginTop: 16 }}><Btn onClick={() => nav("post")} outline full>+ Host a Satsang</Btn></div>
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", borderTop: `1px solid rgba(255,255,255,0.03)`, paddingTop: 20 }}>
+          <Btn onClick={() => nav("post")} outline>+ Host a Satsang</Btn>
+          <Btn onClick={() => nav("find")} ghost>Find Upcoming Satsang →</Btn>
         </div>
       </div>
-      {hosted.length > 0 && <div style={{ marginBottom: 36 }}>
-        <h3 style={{ fontSize: 19, fontWeight: 700, color: C.cream, marginBottom: 16 }}>🏠 Satsangs I'm Hosting</h3>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>{hosted.map(s => <SCard key={s.id} s={s} nav={nav} />)}</div>
+      {upcomingHosted.length > 0 && <div style={{ marginBottom: 36 }}>
+        <h3 style={{ fontSize: 19, fontWeight: 700, color: C.cream, marginBottom: 16 }}>Satsangs I'm Hosting</h3>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>{upcomingHosted.map(s => <SCard key={s.id} s={s} nav={nav} />)}</div>
       </div>}
       <div style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 19, fontWeight: 700, color: C.cream, marginBottom: 16 }}>🙏 Satsangs I'm Attending</h3>
-        {attending.length === 0 ? (
+        <h3 style={{ fontSize: 19, fontWeight: 700, color: C.cream, marginBottom: 16 }}>Satsangs I'm Attending</h3>
+        {upcomingAttending.length === 0 ? (
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "24px 20px", color: C.muted, fontSize: 15 }}>
             You are not registered for any upcoming satsangs yet. Use Find Satsang to register for one, or host your own.
           </div>
         ) : (
-          attending.map(s => {
+          upcomingAttending.map(s => {
             const sevaRoles = Object.values(s.sevas || {}).filter(sv => (sv.enrolled || []).some(e => e.uid === user.uid));
+            const statusColor = s.attendanceStatus === "confirmed" ? "#7db87f" : s.attendanceStatus === "waitlisted" ? "#e06b10" : C.gold;
+            const statusBg = s.attendanceStatus === "confirmed" ? "rgba(76,130,80,0.2)" : s.attendanceStatus === "waitlisted" ? "rgba(224,107,16,0.15)" : "rgba(212,151,42,0.15)";
+            const statusText = s.attendanceStatus === "confirmed" ? "✓ Confirmed" : s.attendanceStatus === "waitlisted" ? "⚠️ Waitlisted" : "⏳ Pending Approval";
             return (
               <div key={s.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 20px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                 <div>
-                  <strong style={{ color: C.cream, fontSize: 15 }}>{s.title}</strong>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <strong style={{ color: C.cream, fontSize: 15 }}>{s.title}</strong>
+                    <span style={{ background: statusBg, color: statusColor, fontSize: 11, fontWeight: "bold", padding: "3px 10px", borderRadius: 20, fontFamily: "sans-serif" }}>
+                      {statusText}
+                    </span>
+                  </div>
                   <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{fmtDate(s.date)} · {s.city} {s.postcode}</div>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
@@ -1076,6 +1775,231 @@ function DashboardView({ user, profile, nav, notify }) {
             );
           })
         )}
+      </div>
+      {/* Completed Satsangs */}
+      {completed.length > 0 && (
+        <div style={{ marginTop: 24, marginBottom: 20 }}>
+          <h3 style={{ fontSize: 19, fontWeight: 700, color: C.cream, marginBottom: 16 }}>Completed Satsangs</h3>
+          {completed.map(s => {
+            const roleColor = s.role.includes("Host") ? C.gold : "#7db87f";
+            const roleBg = s.role.includes("Host") ? "rgba(212,151,42,0.15)" : "rgba(76,130,80,0.15)";
+            return (
+              <div key={s.id} onClick={() => nav("detail", s.id)} style={{ background: "rgba(255,255,255,0.02)", border: `1px solid rgba(255,255,255,0.06)`, borderRadius: 10, padding: "16px 20px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, cursor: "pointer", transition: "all 0.2s ease" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = C.border; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.02)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <strong style={{ color: "#c0a878", fontSize: 15 }}>{s.title}</strong>
+                    <span style={{ background: roleBg, color: roleColor, fontSize: 11, fontWeight: "bold", padding: "3px 10px", borderRadius: 20, fontFamily: "sans-serif" }}>
+                      {s.role}
+                    </span>
+                  </div>
+                  <div style={{ color: "rgba(156,112,80,0.6)", fontSize: 13, marginTop: 4 }}>{fmtDate(s.date)} · {s.city} {s.postcode}</div>
+                </div>
+                <div style={{ color: C.muted, fontSize: 13, fontWeight: "bold" }}>Concluded</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+// ─── Profile View ─────────────────────────────────────────────────────────────
+function ProfileView({ user, profile, nav, notify }) {
+  const [newGuestName, setNewGuestName] = useState("");
+  const [newGuestRel, setNewGuestRel] = useState("Spouse");
+  const [isChild, setIsChild] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
+  const handleAddGuest = async () => {
+    const trimmedName = newGuestName.trim();
+    if (!trimmedName) {
+      notify("Please enter a guest name", "err");
+      return;
+    }
+    setGuestBusy(true);
+    try {
+      const isActuallyChild = (newGuestRel === "Son" || newGuestRel === "Daughter") && isChild;
+      const newGuest = {
+        id: "g_" + Math.random().toString(36).slice(2, 9),
+        name: trimmedName,
+        relationship: newGuestRel,
+        isChild: isActuallyChild
+      };
+      const currentGuests = profile?.guests || [];
+      await updateUserGuests(user.uid, [...currentGuests, newGuest]);
+      setNewGuestName("");
+      setIsChild(false);
+      notify("Guest added successfully! 🙏");
+    } catch (err) {
+      console.error(err);
+      notify("Failed to add guest", "err");
+    }
+    setGuestBusy(false);
+  };
+  const handleRemoveGuest = async (guestId) => {
+    if (!window.confirm("Are you sure you want to remove this guest?")) return;
+    try {
+      const currentGuests = profile?.guests || [];
+      const updated = currentGuests.filter(g => g.id !== guestId);
+      await updateUserGuests(user.uid, updated);
+      notify("Guest removed successfully! 🙏");
+    } catch (err) {
+      console.error(err);
+      notify("Failed to remove guest", "err");
+    }
+  };
+  if (!user) return <Empty><Btn onClick={() => nav("login")}>Login to view profile →</Btn></Empty>;
+  return (
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 32px" }}>
+      <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 6px" }}>My Profile</h2>
+      <p style={{ color: C.muted, marginBottom: 32 }}>Manage your basic personal details and register regular guests or children.</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24, marginBottom: 24 }}>
+        {/* Personal Details */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, marginBottom: 18 }}>Personal Details</div>
+          {[["Name", profile?.name], ["Email", user.email], ["Phone", profile?.phone], ["City", profile?.city], ["Address", `${profile?.address || ""} ${profile?.postcode || ""}`]].map(([k, v]) => v ? (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, paddingBottom: 10, marginBottom: 10, borderBottom: `1px solid ${C.border}`, gap: 12, flexWrap: "wrap" }}>
+              <span style={{ color: C.muted }}>{k}</span><strong style={{ color: C.cream }}>{v}</strong>
+            </div>
+          ) : null)}
+        </div>
+        {/* Managed Guests & Children */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, marginBottom: 10 }}>Family & Regular Guests</div>
+          <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+            Satsang is a gathering of love and devotion. Add your regular family members, children, or friends here so they are registered in your profile. You will then be able to easily select them and assign Sevas to them when registering for any upcoming Satsang.
+          </p>
+
+          {/* Add Guest Form */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: "1 1 200px" }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Name</label>
+              <input
+                style={{
+                  background: "none",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  color: C.cream,
+                  fontSize: 14,
+                  width: "100%",
+                  outline: "none"
+                }}
+                placeholder="e.g. Rajiv Aggarwal"
+                value={newGuestName}
+                onChange={e => setNewGuestName(e.target.value)}
+              />
+            </div>
+            <div style={{ flex: "1 1 150px" }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Relationship</label>
+              <select
+                style={{
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  color: C.cream,
+                  fontSize: 14,
+                  width: "100%",
+                  outline: "none"
+                }}
+                value={newGuestRel}
+                onChange={e => setNewGuestRel(e.target.value)}
+              >
+                {["Spouse", "Son", "Daughter", "Parent", "Sibling", "Friend", "Other"].map(r => (
+                  <option key={r} value={r} style={{ background: C.bg }}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleAddGuest}
+              disabled={guestBusy}
+              style={{
+                background: C.gold,
+                color: C.bg,
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 20px",
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: "pointer",
+                height: 38,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              {guestBusy ? "Adding…" : "+ Add Member"}
+            </button>
+            {/* Child Checkbox for Profile page */}
+            {(newGuestRel === "Son" || newGuestRel === "Daughter") && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flex: "1 1 100%" }}>
+                <input
+                  type="checkbox"
+                  id="profileIsChild"
+                  checked={isChild}
+                  onChange={e => setIsChild(e.target.checked)}
+                  style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.gold }}
+                />
+                <label htmlFor="profileIsChild" style={{ fontSize: 13, color: C.cream, cursor: "pointer", fontFamily: "sans-serif" }}>
+                  12 or younger (Child)
+                </label>
+              </div>
+            )}
+          </div>
+          {/* Guests List */}
+          {(!profile?.guests || profile.guests.length === 0) ? (
+            <div style={{ border: `1px dashed ${C.border}`, borderRadius: 10, padding: "24px", textAlign: "center", color: C.muted, fontSize: 14, fontStyle: "italic" }}>
+              No family members or guests added yet.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+              {profile.guests.map(g => (
+                <div key={g.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.01)", border: `1px solid rgba(92,42,10,0.3)`, borderRadius: 10, padding: "12px 16px" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, color: C.cream, fontSize: 14 }}>{g.name}</div>
+                    <div style={{ fontSize: 11, color: C.gold, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                      {g.relationship}
+                      {g.isChild && (
+                        <span style={{
+                          color: C.bg,
+                          background: C.gold,
+                          fontSize: 9,
+                          fontWeight: "bold",
+                          padding: "1px 6px",
+                          borderRadius: 8,
+                          textTransform: "uppercase",
+                          fontFamily: "sans-serif"
+                        }}>
+                          Child
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveGuest(g.id)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: C.saffron,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      padding: "4px 8px",
+                      fontWeight: "bold",
+                      borderRadius: 4
+                    }}
+                    onMouseOver={e => e.currentTarget.style.textDecoration = "underline"}
+                    onMouseOut={e => e.currentTarget.style.textDecoration = "none"}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1138,25 +2062,21 @@ function AdminView({ user, profile, nav, notify }) {
   const [allUsers, setAllUsers] = useState([]);
   const [broadcast, setBroadcast] = useState({ subject: "", body: "" });
   const [busy, setBusy] = useState(false);
-
   useEffect(() => {
     getAllSatsangs().then(setAllSatsangs);
     getAllUsers().then(setAllUsers);
   }, []);
-
   const doCancel = async (id) => {
     if (!window.confirm("Cancel this Satsang? All attendees will need to be notified manually.")) return;
     await cancelSatsang(id);
     setAllSatsangs(p => p.map(s => s.id === id ? { ...s, status: "cancelled" } : s));
     notify("Satsang cancelled.");
   };
-
   const doRoleChange = async (uid, role) => {
     await updateUserRole(uid, role);
     setAllUsers(p => p.map(u => u.id === uid ? { ...u, role } : u));
     notify("Role updated.");
   };
-
   const doBroadcast = async () => {
     if (!broadcast.subject || !broadcast.body) { notify("Subject and body required", "err"); return; }
     setBusy(true);
@@ -1168,12 +2088,10 @@ function AdminView({ user, profile, nav, notify }) {
     } catch (e) { notify(e.message, "err"); }
     setBusy(false);
   };
-
-  const TABS = [["satsangs", "📋 All Satsangs"], ["users", "👥 Users"], ["broadcast", "📢 Broadcast"]];
-
+  const TABS = [["satsangs", "All Satsangs"], ["users", "Users"], ["broadcast", "Broadcast"]];
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "48px 32px" }}>
-      <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 6px" }}>⚙ Admin Panel</h2>
+      <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 6px" }}>Admin Panel</h2>
       <p style={{ color: C.muted, marginBottom: 32 }}>Manage all Satsangs, users and communications</p>
       <div style={{ display: "flex", gap: 4, marginBottom: 32, borderBottom: `1px solid ${C.border}`, paddingBottom: 0 }}>
         {TABS.map(([k, l]) => (
@@ -1182,7 +2100,6 @@ function AdminView({ user, profile, nav, notify }) {
           </button>
         ))}
       </div>
-
       {tab === "satsangs" && (
         <div>
           <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1191,7 +2108,7 @@ function AdminView({ user, profile, nav, notify }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                {["Title", "Date", "City", "Attendees", "Status", "Actions"].map(h => (
+                {["Title", "Date", "Time", "City", "Attendees", "Status", "Actions"].map(h => (
                   <th key={h} style={{ textAlign: "left", padding: "10px 12px", color: C.muted, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "sans-serif" }}>{h}</th>
                 ))}
               </tr>
@@ -1199,8 +2116,29 @@ function AdminView({ user, profile, nav, notify }) {
             <tbody>
               {allSatsangs.map(s => (
                 <tr key={s.id} style={{ borderBottom: `1px solid rgba(92,42,10,0.3)` }}>
-                  <td style={{ padding: "12px", color: C.cream, fontWeight: 600 }}>{s.title}</td>
+                  <td style={{ padding: "12px" }}>
+                    <button
+                      onClick={() => nav("detail", s.id)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        color: C.cream,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        fontSize: 14,
+                        textAlign: "left",
+                        fontFamily: "Georgia,serif",
+                        transition: "color 0.2s ease"
+                      }}
+                      onMouseOver={e => e.currentTarget.style.color = C.gold}
+                      onMouseOut={e => e.currentTarget.style.color = C.cream}
+                    >
+                      {s.title}
+                    </button>
+                  </td>
                   <td style={{ padding: "12px", color: C.muted }}>{s.date}</td>
+                  <td style={{ padding: "12px", color: C.muted }}>{fmtTime(s.time)}</td>
                   <td style={{ padding: "12px", color: C.muted }}>{s.city}</td>
                   <td style={{ padding: "12px", color: C.gold }}>{s.attendeeCount || 0}/{s.maxAttendees}</td>
                   <td style={{ padding: "12px" }}>
@@ -1217,7 +2155,6 @@ function AdminView({ user, profile, nav, notify }) {
           </table>
         </div>
       )}
-
       {tab === "users" && (
         <div>
           <div style={{ marginBottom: 16 }}><span style={{ color: C.muted, fontSize: 14 }}>{allUsers.length} registered members</span></div>
@@ -1253,7 +2190,6 @@ function AdminView({ user, profile, nav, notify }) {
           </table>
         </div>
       )}
-
       {tab === "broadcast" && (
         <div style={{ maxWidth: 600 }}>
           <p style={{ color: C.muted, marginBottom: 24, fontSize: 15, lineHeight: 1.7 }}>
@@ -1297,14 +2233,47 @@ function LoginView({ nav, notify }) {
 function RegisterView({ nav, notify }) {
   const [f, setF] = useState({ name: "", email: "", phone: "", address: "", city: "", postcode: "", password: "", confirm: "" });
   const [busy, setBusy] = useState(false);
+  const [guests, setGuests] = useState([]);
+  const [newGuestName, setNewGuestName] = useState("");
+  const [newGuestRel, setNewGuestRel] = useState("Spouse");
+  const [isChild, setIsChild] = useState(false);
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }));
+  const handleAddLocalGuest = () => {
+    const trimmed = newGuestName.trim();
+    if (!trimmed) {
+      notify("Please enter a guest name", "err");
+      return;
+    }
+    const isActuallyChild = (newGuestRel === "Son" || newGuestRel === "Daughter") && isChild;
+    const newGuest = {
+      id: "g_" + Math.random().toString(36).slice(2, 9),
+      name: trimmed,
+      relationship: newGuestRel,
+      isChild: isActuallyChild
+    };
+    setGuests(prev => [...prev, newGuest]);
+    setNewGuestName("");
+    setIsChild(false);
+  };
+  const handleRemoveLocalGuest = (id) => {
+    setGuests(prev => prev.filter(g => g.id !== id));
+  };
   const submit = async () => {
     if (!f.name || !f.email || !f.phone || !f.address || !f.city || !f.postcode || !f.password) { notify("Please fill all required fields", "err"); return; }
     if (f.password !== f.confirm) { notify("Passwords do not match", "err"); return; }
     if (f.password.length < 6) { notify("Password must be at least 6 characters", "err"); return; }
     setBusy(true);
     try {
-      await registerUser({ email: f.email, password: f.password, name: f.name, phone: f.phone, address: f.address, city: f.city, postcode: f.postcode });
+      await registerUser({
+        email: f.email,
+        password: f.password,
+        name: f.name,
+        phone: f.phone,
+        address: f.address,
+        city: f.city,
+        postcode: f.postcode,
+        guests
+      });
       notify(`Jai Guruji! Welcome to the Sangat, ${f.name} 🙏`);
       nav("find");
     } catch (e) { notify(e.message.replace("Firebase:", "").trim(), "err"); }
@@ -1324,6 +2293,152 @@ function RegisterView({ nav, notify }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <FField label="Password *" type="password" v={f.password} on={set("password")} />
       <FField label="Confirm Password *" type="password" v={f.confirm} on={set("confirm")} />
+    </div>
+
+    {/* Subtle & Compelling Guest/Child Registration Form */}
+    <div style={{
+      background: "rgba(212,151,42,0.03)",
+      border: `1px dashed rgba(212,151,42,0.25)`,
+      borderRadius: 10,
+      padding: "16px 20px",
+      margin: "8px 0 20px 0",
+      fontSize: 13,
+      lineHeight: 1.6,
+      color: C.muted
+    }}>
+      <span style={{ color: C.gold, fontWeight: 700, display: "block", marginBottom: 6 }}>Add Family and Friends</span>
+      <p style={{ margin: "0 0 12px 0", fontSize: 12, lineHeight: 1.5 }}>
+        Add your family, children, or regular guests here to include them in your profile. You can easily include them when registering for a Satsang.
+      </p>
+      {/* Inline Guest Inputs */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={{ flex: "1 1 180px" }}>
+          <label style={{ display: "block", marginBottom: 4, fontSize: 10, color: C.gold, letterSpacing: "0.05em", fontFamily: "sans-serif" }}>Name</label>
+          <input
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: `1px solid ${C.border}`,
+              borderRadius: 6,
+              padding: "7px 10px",
+              color: C.cream,
+              fontSize: 13,
+              width: "100%",
+              outline: "none",
+              boxSizing: "border-box"
+            }}
+            placeholder="e.g. Rajiv Aggarwal"
+            value={newGuestName}
+            onChange={e => setNewGuestName(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: "1 1 120px" }}>
+          <label style={{ display: "block", marginBottom: 4, fontSize: 10, color: C.gold, letterSpacing: "0.05em", fontFamily: "sans-serif" }}>Relationship</label>
+          <select
+            style={{
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: 6,
+              padding: "7px 10px",
+              color: C.cream,
+              fontSize: 13,
+              width: "100%",
+              outline: "none",
+              boxSizing: "border-box",
+              height: 31
+            }}
+            value={newGuestRel}
+            onChange={e => setNewGuestRel(e.target.value)}
+          >
+            {["Spouse", "Son", "Daughter", "Parent", "Sibling", "Friend", "Other"].map(r => (
+              <option key={r} value={r} style={{ background: C.bg }}>{r}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={handleAddLocalGuest}
+          style={{
+            background: "none",
+            color: C.gold,
+            border: `1px solid ${C.gold}`,
+            borderRadius: 6,
+            padding: "6px 14px",
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: "pointer",
+            height: 31,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxSizing: "border-box"
+          }}
+        >
+          + Add
+        </button>
+        {/* Child Checkbox for Join Sangat page */}
+        {(newGuestRel === "Son" || newGuestRel === "Daughter") && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flex: "1 1 100%" }}>
+            <input
+              type="checkbox"
+              id="registerIsChild"
+              checked={isChild}
+              onChange={e => setIsChild(e.target.checked)}
+              style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.gold }}
+            />
+            <label htmlFor="registerIsChild" style={{ fontSize: 13, color: C.cream, cursor: "pointer", fontFamily: "sans-serif" }}>
+              12 or younger (Child)
+            </label>
+          </div>
+        )}
+      </div>
+      {/* Local Guest List */}
+      {guests.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+          {guests.map((g) => (
+            <div key={g.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.02)", border: `1px solid rgba(212,151,42,0.15)`, borderRadius: 6, padding: "8px 12px" }}>
+              <div>
+                <span style={{ fontWeight: 600, color: C.cream, fontSize: 13 }}>{g.name}</span>
+                <span style={{ fontSize: 11, color: C.gold, textTransform: "uppercase", letterSpacing: "0.05em", marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {g.relationship}
+                  {g.isChild && (
+                    <span style={{
+                      color: C.bg,
+                      background: C.gold,
+                      fontSize: 8,
+                      fontWeight: "bold",
+                      padding: "1px 5px",
+                      borderRadius: 6,
+                      textTransform: "uppercase",
+                      fontFamily: "sans-serif",
+                      lineHeight: 1
+                    }}>
+                      Child
+                    </span>
+                  )}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemoveLocalGuest(g.id)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: C.saffron,
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: "bold",
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: C.muted, fontStyle: "italic", marginTop: 8, textAlign: "center" }}>
+          No family members or guests added yet.
+        </div>
+      )}
     </div>
     <Btn onClick={submit} disabled={busy} full>{busy ? "Creating account…" : "Create Account →"}</Btn>
     <p style={{ textAlign: "center", color: C.muted, fontSize: 14, marginTop: 20 }}>Already registered? <button onClick={() => nav("login")} style={{ background: "none", border: "none", color: C.gold, cursor: "pointer", textDecoration: "underline" }}>Login here</button></p>
@@ -1357,7 +2472,7 @@ function SCard({ s, nav }) {
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {s.city} {s.postcode}</span>
         {s.distance !== undefined && s.distance !== null && (
           <span style={{ color: C.gold, fontSize: 11, fontWeight: "bold", whiteSpace: "nowrap", flexShrink: 0 }}>
-            🚗 {s.distance.toFixed(1)} km
+            {s.distance.toFixed(1)} km
           </span>
         )}
       </div>
@@ -1414,10 +2529,10 @@ function FWrap({ title, sub, children }) {
   </div>;
 }
 
-function FField({ label, type = "text", v, on, ph }) {
+function FField({ label, type = "text", v, on, ph, ...rest }) {
   return <div style={{ marginBottom: 18 }}>
     <Label>{label}</Label>
-    <input type={type} value={v} onChange={on} placeholder={ph} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px", color: C.cream, fontSize: 15, fontFamily: "Georgia,serif", outline: "none", boxSizing: "border-box" }} />
+    <input type={type} value={v} onChange={on} placeholder={ph} {...rest} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px", color: C.cream, fontSize: 15, fontFamily: "Georgia,serif", outline: "none", boxSizing: "border-box" }} />
   </div>;
 }
 
@@ -1427,13 +2542,13 @@ function Label({ children }) {
 
 function DivineVachanBanner({ view }) {
   const [vachan, setVachan] = useState(null);
-  
+
   useEffect(() => {
     setVachan(getRandomVachan());
   }, [view]);
-  
+
   if (!vachan) return null;
-  
+
   return (
     <div style={{
       maxWidth: 900,
@@ -1454,7 +2569,7 @@ function DivineVachanBanner({ view }) {
         fontFamily: "sans-serif",
         fontWeight: 700
       }}>
-        🌹 Guruji's Divine Vachan
+        Guruji's Divine Vachan
       </div>
       <p style={{
         fontSize: 16,

@@ -208,41 +208,82 @@ exports.onAttendanceRegistered = region.firestore
     if (!satsangSnap.exists) return;
     const s = satsangSnap.data();
 
-    await sendMail(
-      att.userEmail,
-      `✅ Registered: ${s.title} — Jai Guruji!`,
-      `
-      <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
-        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
-        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
-        <h2 style="color:#d4972a;">You're registered, ${att.userName}! 🙏</h2>
-        <p style="color:#c0a878;">Your attendance has been confirmed for:</p>
-        ${satsangEmailBlock(s)}
-        ${att.guests > 0 ? `<p style="color:#c0a878;">You have registered <strong style="color:#d4972a;">${att.guests} guest(s)</strong> in addition to yourself.</p>` : ""}
-        <p style="color:#c0a878;line-height:1.8;">
-          Please remember to observe Guruji's Satsang guidelines — 
-          switch off your mobile phone, maintain silence, and go home directly after Langar Prasad.
-        </p>
-        <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
-      </div>`
-    );
-
-    // Also notify the organiser
-    const orgSnap = await db.doc(`users/${s.organizerUid}`).get();
-    if (orgSnap.exists) {
-      const org = orgSnap.data();
+    if (att.status === 'waitlisted') {
+      // 1. Send Waitlisted Request Received email to applicant
       await sendMail(
-        org.email,
-        `New attendee: ${att.userName} registered for ${s.title}`,
+        att.userEmail,
+        `⚠️ Waitlisted: ${s.title} — Satsang Over Capacity`,
         `
         <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
-          <h3 style="color:#d4972a;">New Registration</h3>
-          <p style="color:#c0a878;"><strong style="color:#d4972a;">${att.userName}</strong> has registered for your Satsang:</p>
+          <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+          <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+          <h2 style="color:#e06b10;">Waitlist Status, ${att.userName}! 🙏</h2>
+          <p style="color:#c0a878;">This Satsang is currently **over capacity**. Your request has been placed on the **Waitlist**:</p>
           ${satsangEmailBlock(s)}
-          <p style="color:#c0a878;">Guests: ${att.guests} &nbsp;|&nbsp; Phone: ${att.userPhone} &nbsp;|&nbsp; Email: ${att.userEmail}</p>
+          ${att.guests > 0 ? `<p style="color:#c0a878;">Requested spots: <strong style="color:#d4972a;">1 + ${att.guests} guest(s)</strong></p>` : ""}
+          <p style="color:#c0a878;line-height:1.8;">
+            If spots open up (e.g. someone cancels or host increases capacity) and the host confirms your attendance, you will be notified immediately via email.
+          </p>
           <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
         </div>`
       );
+
+      // 2. Send New Waitlist Registration email to host
+      const orgSnap = await db.doc(`users/${s.organizerUid}`).get();
+      if (orgSnap.exists) {
+        const org = orgSnap.data();
+        await sendMail(
+          org.email,
+          `⚠️ New Waitlist Registration: ${att.userName} for ${s.title}`,
+          `
+          <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+            <h3 style="color:#e06b10;">New Waitlist Registration</h3>
+            <p style="color:#c0a878;"><strong style="color:#d4972a;">${att.userName}</strong> (with ${att.guests} guest(s)) has been placed on the **Waitlist** because your Satsang is over capacity:</p>
+            ${satsangEmailBlock(s)}
+            <p style="color:#c0a878;">Guests: ${att.guests} &nbsp;|&nbsp; Phone: ${att.userPhone} &nbsp;|&nbsp; Email: ${att.userEmail}</p>
+            <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+          </div>`
+        );
+      }
+    } else {
+      // Default: status === 'pending'
+      // 1. Send Pending Request Received email to applicant
+      await sendMail(
+        att.userEmail,
+        `⏳ Request Received: ${s.title} — Pending Host Approval`,
+        `
+        <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+          <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+          <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+          <h2 style="color:#d4972a;">Attendance Request Received, ${att.userName}! 🙏</h2>
+          <p style="color:#c0a878;">Your request to attend the following Satsang has been received and is currently **pending host approval**:</p>
+          ${satsangEmailBlock(s)}
+          ${att.guests > 0 ? `<p style="color:#c0a878;">Requested spots: <strong style="color:#d4972a;">1 + ${att.guests} guest(s)</strong></p>` : ""}
+          <p style="color:#c0a878;line-height:1.8;">
+            You will receive another email confirmation as soon as the host approves your request.
+          </p>
+          <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+        </div>`
+      );
+
+      // 2. Send New Attendance Request Pending Approval email to host
+      const orgSnap = await db.doc(`users/${s.organizerUid}`).get();
+      if (orgSnap.exists) {
+        const org = orgSnap.data();
+        await sendMail(
+          org.email,
+          `⏳ Pending Approval: ${att.userName} wishes to attend ${s.title}`,
+          `
+          <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+            <h3 style="color:#d4972a;">New Attendance Request</h3>
+            <p style="color:#c0a878;"><strong style="color:#d4972a;">${att.userName}</strong> (with ${att.guests} guest(s)) has wished to attend your Satsang:</p>
+            ${satsangEmailBlock(s)}
+            <p style="color:#c0a878;">Please log into the app to confirm any pending sangat (attendees).</p>
+            <p style="color:#c0a878;">Guests: ${att.guests} &nbsp;|&nbsp; Phone: ${att.userPhone} &nbsp;|&nbsp; Email: ${att.userEmail}</p>
+            <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+          </div>`
+        );
+      }
     }
   });
 
@@ -252,7 +293,7 @@ exports.registerAttendance = region.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('unauthenticated', 'Login required');
   }
 
-  const { satsangId, guests = 0, userName, userEmail, userPhone } = data || {};
+  const { satsangId, guests = 0, userName, userEmail, userPhone, attendeesList, requestedSevas = [] } = data || {};
   if (!satsangId || !userName || !userEmail) {
     throw new functions.https.HttpsError('invalid-argument', 'Missing required registration fields');
   }
@@ -271,9 +312,23 @@ exports.registerAttendance = region.https.onCall(async (data, context) => {
     }
 
     const satsang = snap.data();
+    if (satsang.organizerUid === context.auth.uid) {
+      throw new functions.https.HttpsError('failed-precondition', 'Host cannot register for their own hosted Satsang');
+    }
+    if (satsang.status !== 'upcoming') {
+      throw new functions.https.HttpsError('failed-precondition', 'Cannot register for a Satsang that is not upcoming');
+    }
+
     const currentCount = Number(satsang.attendeeCount || 0);
-    if (typeof satsang.maxAttendees === 'number' && currentCount + 1 + guests > satsang.maxAttendees) {
-      throw new functions.https.HttpsError('failed-precondition', 'Not enough spots');
+    const finalAttendeesList = attendeesList || [
+      { id: context.auth.uid, name: userName, isPrimary: true }
+    ];
+    const partySize = finalAttendeesList.length;
+
+    // Determine initial status based on capacity
+    let status = 'pending';
+    if (typeof satsang.maxAttendees === 'number' && currentCount + partySize > satsang.maxAttendees) {
+      status = 'waitlisted';
     }
 
     tx.set(attendeeRef, {
@@ -281,15 +336,457 @@ exports.registerAttendance = region.https.onCall(async (data, context) => {
       userName,
       userEmail,
       userPhone,
-      guests,
+      attendeesList: finalAttendeesList,
+      guests: partySize - 1,
+      status,
+      requestedSevas: (requestedSevas || []).map(s => ({
+        sevaId: s.sevaId,
+        personId: s.personId,
+        personName: s.personName,
+        status: 'pending'
+      })),
       registeredAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    // NOTE: attendeeCount is NOT updated here. It is updated only upon host confirmation!
+  });
+
+  return { success: true };
+});
+
+// ── 3a. Confirm Attendance ───────────────────────────────────────────────────
+exports.confirmAttendance = region.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Login required');
+  }
+
+  const { satsangId, attendeeUid } = data || {};
+  if (!satsangId || !attendeeUid) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+  }
+
+  const satsangRef = db.doc(`satsangs/${satsangId}`);
+  const attendeeRef = satsangRef.collection('attendees').doc(attendeeUid);
+
+  let recipientEmail, recipientName, satsangData, attendeeData;
+
+  await db.runTransaction(async tx => {
+    const satsangSnap = await tx.get(satsangRef);
+    if (!satsangSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Satsang not found');
+    }
+    const satsang = satsangSnap.data();
+    satsangData = satsang;
+
+    // Permissions check: must be host or admin
+    const isHost = satsang.organizerUid === context.auth.uid;
+    let isAdmin = false;
+    const callerSnap = await tx.get(db.doc(`users/${context.auth.uid}`));
+    if (callerSnap.exists && callerSnap.data().role === 'admin') {
+      isAdmin = true;
+    }
+    if (!isHost && !isAdmin) {
+      throw new functions.https.HttpsError('permission-denied', 'Only the host or admin can confirm attendance');
+    }
+
+    const attendeeSnap = await tx.get(attendeeRef);
+    if (!attendeeSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Attendee record not found');
+    }
+    const attendee = attendeeSnap.data();
+    attendeeData = attendee;
+    recipientEmail = attendee.userEmail;
+    recipientName = attendee.userName;
+
+    if (attendee.status === 'confirmed') {
+      throw new functions.https.HttpsError('failed-precondition', 'Attendee is already confirmed');
+    }
+
+    const finalAttendeesList = attendee.attendeesList || [
+      { id: attendeeUid, name: attendee.userName, isPrimary: true }
+    ];
+    const partySize = finalAttendeesList.length;
+    const currentCount = Number(satsang.attendeeCount || 0);
+    if (typeof satsang.maxAttendees === 'number' && currentCount + partySize > satsang.maxAttendees) {
+      throw new functions.https.HttpsError('failed-precondition', 'Not enough spots available in the Satsang');
+    }
+
+    tx.update(attendeeRef, {
+      status: 'confirmed',
+      confirmedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     tx.update(satsangRef, {
-      attendeeCount: currentCount + 1 + guests,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      attendeeCount: currentCount + partySize,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
   });
+
+  // Send Confirmation Email
+  if (recipientEmail) {
+    await sendMail(
+      recipientEmail,
+      `✅ Attendance Confirmed: ${satsangData.title} — Jai Guruji!`,
+      `
+      <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+        <h2 style="color:#d4972a;">Attendance Confirmed, ${recipientName}! 🙏</h2>
+        <p style="color:#c0a878;">Your attendance request has been **confirmed** by the host for:</p>
+        ${satsangEmailBlock(satsangData)}
+        ${attendeeData.guests > 0 ? `<p style="color:#c0a878;">Confirmed spots: <strong style="color:#d4972a;">1 + ${attendeeData.guests} guest(s)</strong></p>` : ""}
+        <p style="color:#c0a878;line-height:1.8;">
+          Please remember to observe Guruji's Satsang guidelines — 
+          switch off your mobile phone, maintain silence, and go home directly after Langar Prasad.
+        </p>
+        <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+      </div>`
+    );
+  }
+
+  return { success: true };
+});
+
+// ── 3d. Confirm Seva ──────────────────────────────────────────────────────────
+exports.confirmSeva = region.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Login required');
+  }
+
+  const { satsangId, attendeeUid, sevaId, personId } = data || {};
+  if (!satsangId || !attendeeUid || !sevaId || !personId) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+  }
+
+  const satsangRef = db.doc(`satsangs/${satsangId}`);
+  const attendeeRef = satsangRef.collection('attendees').doc(attendeeUid);
+
+  let recipientEmail, recipientName, satsangData, personName, sevaName;
+
+  await db.runTransaction(async tx => {
+    const satsangSnap = await tx.get(satsangRef);
+    if (!satsangSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Satsang not found');
+    }
+    const satsang = satsangSnap.data();
+    satsangData = satsang;
+
+    // Permissions check: must be host or admin
+    const isHost = satsang.organizerUid === context.auth.uid;
+    let isAdmin = false;
+    const callerSnap = await tx.get(db.doc(`users/${context.auth.uid}`));
+    if (callerSnap.exists && callerSnap.data().role === 'admin') {
+      isAdmin = true;
+    }
+    if (!isHost && !isAdmin) {
+      throw new functions.https.HttpsError('permission-denied', 'Only the host or admin can confirm Seva');
+    }
+
+    const attendeeSnap = await tx.get(attendeeRef);
+    if (!attendeeSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Attendee record not found');
+    }
+    const attendee = attendeeSnap.data();
+    recipientEmail = attendee.userEmail;
+    recipientName = attendee.userName;
+
+    // CRITICAL SAFETY CHECK: The host is strictly blocked from confirming a Seva if the associated registration status is not confirmed.
+    if (attendee.status !== 'confirmed') {
+      throw new functions.https.HttpsError('failed-precondition', 'Cannot allocate Seva to an attendee whose registration is not confirmed');
+    }
+
+    const requestedSevas = attendee.requestedSevas || [];
+    const sevaIndex = requestedSevas.findIndex(r => r.sevaId === sevaId && r.personId === personId);
+    if (sevaIndex === -1) {
+      throw new functions.https.HttpsError('not-found', 'Requested Seva not found for this individual');
+    }
+
+    const reqSeva = requestedSevas[sevaIndex];
+    if (reqSeva.status === 'confirmed') {
+      throw new functions.https.HttpsError('failed-precondition', 'Seva is already confirmed for this individual');
+    }
+
+    personName = reqSeva.personName;
+
+    // Check if the Seva slot is available in the Satsang
+    const sevas = satsang.sevas || {};
+    const sv = sevas[sevaId];
+    if (!sv) {
+      throw new functions.https.HttpsError('not-found', 'Seva role not found in Satsang definition');
+    }
+    
+    if ((sv.opted || 0) >= sv.needed) {
+      throw new functions.https.HttpsError('failed-precondition', 'No available slots for this Seva role');
+    }
+
+    // Update the specific requested Seva's status to 'confirmed'
+    const updatedRequestedSevas = [...requestedSevas];
+    updatedRequestedSevas[sevaIndex] = {
+      ...reqSeva,
+      status: 'confirmed'
+    };
+
+    // Update satsang sevas definition: increment opted, append to enrolled
+    const enrolledList = sv.enrolled || [];
+    // Ensure not already enrolled (deduplication)
+    if (!enrolledList.some(e => e.uid === personId)) {
+      const updatedSevas = {
+        ...sevas,
+        [sevaId]: {
+          ...sv,
+          opted: (sv.opted || 0) + 1,
+          enrolled: [...enrolledList, { uid: personId, name: personName, attendeeUid: attendeeUid }]
+        }
+      };
+
+      tx.update(attendeeRef, {
+        requestedSevas: updatedRequestedSevas
+      });
+
+      tx.update(satsangRef, {
+        sevas: updatedSevas,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    const standardSevaNames = {
+      s1: "Langar Distribution Seva",
+      s2: "Langar Preparation Seva",
+      s3: "Disposable Collection Seva",
+      s4: "Decoration Seva",
+      s5: "Chai Prasad Distribution Seva",
+      s6: "Transport Seva",
+      s7: "AV Seva",
+      s8: "Cleaning Seva",
+      s9: "Children Seva"
+    };
+    sevaName = standardSevaNames[sevaId] || sevaId;
+  });
+
+  // Send Seva Confirmation Email
+  if (recipientEmail) {
+    await sendMail(
+      recipientEmail,
+      `🙏 Seva Confirmed: ${sevaName} at ${satsangData.title} — Jai Guruji!`,
+      `
+      <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+        <h2 style="color:#d4972a;">Seva Confirmed, ${personName}! 🙏</h2>
+        <p style="color:#c0a878;">You have been confirmed for <strong style="color:#d4972a;">${sevaName}</strong> at:</p>
+        ${satsangEmailBlock(satsangData)}
+        <p style="color:#c0a878;line-height:1.8;">
+          Please arrive 30–45 minutes early so the Darbar is ready before the Sangat arrives. 
+          Seva is Guruji's greatest blessing — perform it with love and humility.
+        </p>
+        <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+      </div>`
+    ).catch(console.error);
+  }
+
+  return { success: true };
+});
+
+// ── 3e. Decline Seva ──────────────────────────────────────────────────────────
+exports.declineSeva = region.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Login required');
+  }
+
+  const { satsangId, attendeeUid, sevaId, personId } = data || {};
+  if (!satsangId || !attendeeUid || !sevaId || !personId) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+  }
+
+  const satsangRef = db.doc(`satsangs/${satsangId}`);
+  const attendeeRef = satsangRef.collection('attendees').doc(attendeeUid);
+
+  let recipientEmail, recipientName, satsangData, personName, sevaName;
+
+  await db.runTransaction(async tx => {
+    const satsangSnap = await tx.get(satsangRef);
+    if (!satsangSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Satsang not found');
+    }
+    const satsang = satsangSnap.data();
+    satsangData = satsang;
+
+    // Permissions check: must be host or admin
+    const isHost = satsang.organizerUid === context.auth.uid;
+    let isAdmin = false;
+    const callerSnap = await tx.get(db.doc(`users/${context.auth.uid}`));
+    if (callerSnap.exists && callerSnap.data().role === 'admin') {
+      isAdmin = true;
+    }
+    if (!isHost && !isAdmin) {
+      throw new functions.https.HttpsError('permission-denied', 'Only the host or admin can decline Seva');
+    }
+
+    const attendeeSnap = await tx.get(attendeeRef);
+    if (!attendeeSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Attendee record not found');
+    }
+    const attendee = attendeeSnap.data();
+    recipientEmail = attendee.userEmail;
+    recipientName = attendee.userName;
+
+    const requestedSevas = attendee.requestedSevas || [];
+    const sevaIndex = requestedSevas.findIndex(r => r.sevaId === sevaId && r.personId === personId);
+    if (sevaIndex === -1) {
+      throw new functions.https.HttpsError('not-found', 'Requested Seva not found for this individual');
+    }
+
+    const reqSeva = requestedSevas[sevaIndex];
+    const previousStatus = reqSeva.status;
+
+    // If it was already declined, no-op
+    if (previousStatus === 'declined') {
+      return;
+    }
+
+    personName = reqSeva.personName;
+
+    // Update the status to 'declined'
+    const updatedRequestedSevas = [...requestedSevas];
+    updatedRequestedSevas[sevaIndex] = {
+      ...reqSeva,
+      status: 'declined'
+    };
+
+    // If previous status was confirmed, we also need to free the slot from satsang.sevas!
+    const sevas = satsang.sevas || {};
+    const sv = sevas[sevaId];
+    let updatedSevas = { ...sevas };
+
+    if (previousStatus === 'confirmed' && sv) {
+      const enrolledList = sv.enrolled || [];
+      const updatedEnrolled = enrolledList.filter(e => e.uid !== personId);
+      updatedSevas[sevaId] = {
+        ...sv,
+        opted: Math.max(0, (sv.opted || 0) - 1),
+        enrolled: updatedEnrolled
+      };
+    }
+
+    tx.update(attendeeRef, {
+      requestedSevas: updatedRequestedSevas
+    });
+
+    if (previousStatus === 'confirmed' && sv) {
+      tx.update(satsangRef, {
+        sevas: updatedSevas,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    const standardSevaNames = {
+      s1: "Langar Distribution Seva",
+      s2: "Langar Preparation Seva",
+      s3: "Disposable Collection Seva",
+      s4: "Decoration Seva",
+      s5: "Chai Prasad Distribution Seva",
+      s6: "Transport Seva",
+      s7: "AV Seva",
+      s8: "Cleaning Seva",
+      s9: "Children Seva"
+    };
+    sevaName = standardSevaNames[sevaId] || sevaId;
+  });
+
+  // Optional: Send Seva Decline Email
+  if (recipientEmail) {
+    await sendMail(
+      recipientEmail,
+      `⚠️ Seva Request Status: ${sevaName} at ${satsangData.title}`,
+      `
+      <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+        <h2 style="color:#e06b10;">Seva Request Update, ${personName} 🙏</h2>
+        <p style="color:#c0a878;">Your request for <strong style="color:#d4972a;">${sevaName}</strong> at the following Satsang has been declined or unassigned by the host:</p>
+        ${satsangEmailBlock(satsangData)}
+        <p style="color:#c0a878;line-height:1.8;">
+          There are only limited Seva spots available. You can review other available Seva opportunities on the app.
+        </p>
+        <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+      </div>`
+    ).catch(console.error);
+  }
+
+  return { success: true };
+});
+
+// ── 3b. Decline Attendance (Moves to Waitlist) ────────────────────────────────
+exports.declineAttendance = region.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Login required');
+  }
+
+  const { satsangId, attendeeUid } = data || {};
+  if (!satsangId || !attendeeUid) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+  }
+
+  const satsangRef = db.doc(`satsangs/${satsangId}`);
+  const attendeeRef = satsangRef.collection('attendees').doc(attendeeUid);
+
+  let recipientEmail, recipientName, satsangData, attendeeData;
+
+  await db.runTransaction(async tx => {
+    const satsangSnap = await tx.get(satsangRef);
+    if (!satsangSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Satsang not found');
+    }
+    const satsang = satsangSnap.data();
+    satsangData = satsang;
+
+    // Permissions check: must be host or admin
+    const isHost = satsang.organizerUid === context.auth.uid;
+    let isAdmin = false;
+    const callerSnap = await tx.get(db.doc(`users/${context.auth.uid}`));
+    if (callerSnap.exists && callerSnap.data().role === 'admin') {
+      isAdmin = true;
+    }
+    if (!isHost && !isAdmin) {
+      throw new functions.https.HttpsError('permission-denied', 'Only the host or admin can decline attendance');
+    }
+
+    const attendeeSnap = await tx.get(attendeeRef);
+    if (!attendeeSnap.exists) {
+      throw new functions.https.HttpsError('not-found', 'Attendee record not found');
+    }
+    const attendee = attendeeSnap.data();
+    attendeeData = attendee;
+    recipientEmail = attendee.userEmail;
+    recipientName = attendee.userName;
+
+    // Decline moves them to waitlist
+    tx.update(attendeeRef, {
+      status: 'waitlisted',
+      declinedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  });
+
+  // Send Waitlist Notification Email
+  if (recipientEmail) {
+    await sendMail(
+      recipientEmail,
+      `⚠️ Waitlist Status: ${satsangData.title} — Satsang Request Placed on Waitlist`,
+      `
+      <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
+        <p style="color:#d4972a;letter-spacing:0.2em;font-size:10px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
+        <h2 style="color:#e06b10;">Waitlist Notification, ${recipientName} 🙏</h2>
+        <p style="color:#c0a878;">Your request to attend the following Satsang has been **placed on the Waitlist** by the host:</p>
+        ${satsangEmailBlock(satsangData)}
+        ${attendeeData.guests > 0 ? `<p style="color:#c0a878;">Waitlisted spots: <strong style="color:#d4972a;">1 + ${attendeeData.guests} guest(s)</strong></p>` : ""}
+        <p style="color:#c0a878;line-height:1.8;">
+          If spots open up and the host is able to accommodate you, your status will be updated and you will be notified immediately.
+        </p>
+        <p style="color:#9c7050;font-size:12px;margin-top:24px;">Shukrana Guruji 🙏</p>
+      </div>`
+    );
+  }
 
   return { success: true };
 });
@@ -311,6 +808,12 @@ exports.enrollSeva = region.https.onCall(async (data, context) => {
       throw new functions.https.HttpsError('not-found', 'Satsang not found');
     }
     const satsang = snap.data();
+    if (satsang.organizerUid === context.auth.uid) {
+      throw new functions.https.HttpsError('failed-precondition', 'Host cannot enroll in Seva for their own hosted Satsang');
+    }
+    if (satsang.status !== 'upcoming') {
+      throw new functions.https.HttpsError('failed-precondition', 'Cannot enroll in Seva for a Satsang that is not upcoming');
+    }
     const sevas = Array.isArray(satsang.sevas)
       ? satsang.sevas.reduce((acc, sv) => ({ ...acc, [sv.id]: sv }), {})
       : satsang.sevas || {};
@@ -368,6 +871,48 @@ exports.sendSevaConfirmation = region.https.onCall(async (data) => {
   );
   return { success: true };
 });
+
+// ── 3c. Auto-complete past Satsangs — runs every hour on the hour ──
+exports.autoCompleteSatsangs = region.pubsub
+  .schedule("0 * * * *")
+  .timeZone("Europe/London")
+  .onRun(async () => {
+    const ukTimeStr = new Date().toLocaleString("sv-SE", { timeZone: "Europe/London" });
+    const cleanStr = ukTimeStr.replace(",", "");
+    const parts = cleanStr.trim().split(/\s+/);
+    const currentDate = parts[0]; // "YYYY-MM-DD"
+    const currentTime = parts[1] ? parts[1].substring(0, 5) : ""; // "HH:MM"
+
+    console.log(`Checking elapsed Satsangs against UK time: ${currentDate} ${currentTime}`);
+
+    const snap = await db.collection("satsangs")
+      .where("status", "==", "upcoming")
+      .get();
+
+    const batch = db.batch();
+    let count = 0;
+
+    for (const doc of snap.docs) {
+      const s = doc.data();
+      const isPastDate = s.date < currentDate;
+      const isSameDateAndPastTime = s.date === currentDate && s.time <= currentTime;
+
+      if (isPastDate || isSameDateAndPastTime) {
+        batch.update(doc.ref, {
+          status: "completed",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await batch.commit();
+      console.log(`Auto-completed ${count} elapsed Satsang(s).`);
+    } else {
+      console.log("No elapsed Satsangs found to auto-complete.");
+    }
+  });
 
 // ── 4. Satsang reminder — runs daily at 8am UTC, notifies attendees of tomorrow's satsangs ──
 exports.dailyReminder = region.pubsub

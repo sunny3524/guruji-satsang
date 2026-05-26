@@ -16,6 +16,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:geo": "node tools/test-geo.mjs"
+    "test:geo": "node tools/test-geo.mjs",
+    "test:attendance": "node tools/test-attendance.mjs",
+    "test": "npm run test:geo && npm run test:attendance"
   }
 }

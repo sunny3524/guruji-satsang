@@ -53,7 +53,9 @@ service cloud.firestore {
                       isAdmin()
                     );
         allow create: if request.auth != null && request.auth.uid == userId;
-        allow update: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId && (
+                        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'confirmedAt', 'declinedAt'])
+                      );
         allow delete: if request.auth != null && (
                       request.auth.uid == userId || isAdmin()
                     );

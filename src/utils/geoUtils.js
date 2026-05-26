@@ -32,9 +32,53 @@ export async function geocodeLocation(query) {
   if (!query || typeof query !== "string") return null;
   const trimmed = query.trim();
   if (!trimmed) return null;
+
+  const clean = trimmed.replace(/\s+/g, "").toUpperCase();
   
+  // UK outcode regex (e.g. BR2, E4, EN4, SE18)
+  const outcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]?$/;
+  // UK full postcode regex (e.g. EN40DU, SE184ND)
+  const fullPostcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/;
+
+  const isPostcode = outcodeRegex.test(clean) || fullPostcodeRegex.test(clean);
+
+  if (isPostcode) {
+    try {
+      // 1. Try full postcode endpoint first
+      const pUrl = `https://api.postcodes.io/postcodes/${clean}`;
+      let response = await fetch(pUrl);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 200 && data.result) {
+          return {
+            lat: parseFloat(data.result.latitude),
+            lng: parseFloat(data.result.longitude),
+            displayName: data.result.postcode
+          };
+        }
+      }
+      
+      // 2. If full postcode fails, try outcode endpoint
+      const oUrl = `https://api.postcodes.io/outcodes/${clean}`;
+      response = await fetch(oUrl);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 200 && data.result) {
+          return {
+            lat: parseFloat(data.result.latitude),
+            lng: parseFloat(data.result.longitude),
+            displayName: data.result.outcode
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("postcodes.io geocoding failed, falling back to Nominatim:", e);
+    }
+  }
+  
+  // Fall back to Nominatim limited to United Kingdom (countrycodes=gb)
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=1`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=1&countrycodes=gb`;
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'GurujiSatsangApp/1.0'

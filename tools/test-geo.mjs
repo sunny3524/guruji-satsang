@@ -56,6 +56,26 @@ async function runTests() {
     throw new Error(`Invalid location query did not return null! Returned: ${JSON.stringify(invalidCoords)}`);
   }
 
+  // 6. Test Outcode geocoding using postcodes.io
+  console.log("🧪 Test 6: Geocoding UK Outcode 'BR2' (Bromley) using postcodes.io...");
+  const br2Coords = await geocodeLocation("BR2");
+  console.log("   - BR2 coordinates:", br2Coords);
+  if (br2Coords && Math.abs(br2Coords.lat - 51.38) < 0.1 && Math.abs(br2Coords.lng - 0.02) < 0.1) {
+    console.log("   ✅ Success: Outcode geocoding resolves correctly to Bromley!\n");
+  } else {
+    throw new Error(`Outcode geocoding failed for 'BR2'! Returned: ${JSON.stringify(br2Coords)}`);
+  }
+
+  // 7. Test Full Postcode geocoding using postcodes.io
+  console.log("🧪 Test 7: Geocoding UK Full Postcode 'EN4 0DU' using postcodes.io...");
+  const en4Coords = await geocodeLocation("EN4 0DU");
+  console.log("   - EN4 0DU coordinates:", en4Coords);
+  if (en4Coords && Math.abs(en4Coords.lat - 51.64) < 0.1 && Math.abs(en4Coords.lng - (-0.14)) < 0.1) {
+    console.log("   ✅ Success: Full postcode geocoding resolves correctly to Barnet!\n");
+  } else {
+    throw new Error(`Full postcode geocoding failed for 'EN4 0DU'! Returned: ${JSON.stringify(en4Coords)}`);
+  }
+
   console.log("🎉 All proximity and geocoding tests completed successfully!");
 }
 
