@@ -199,6 +199,29 @@ exports.onUserCreated = region.firestore
     );
   });
 
+// ── 1a. Sync phone updates to all attendee records on user profile change ─────
+exports.onUserUpdated = region.firestore
+  .document("users/{uid}")
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    const uid = context.params.uid;
+
+    if (before.phone !== after.phone) {
+      const newPhone = after.phone || "";
+      console.log(`User ${uid} phone changed from ${before.phone} to ${newPhone}. Syncing attendees...`);
+
+      const attendeesSnap = await db.collectionGroup("attendees").where("userUid", "==", uid).get();
+      const batch = db.batch();
+      attendeesSnap.docs.forEach(doc => {
+        batch.update(doc.ref, { userPhone: newPhone });
+      });
+      await batch.commit();
+      console.log(`Synced ${attendeesSnap.size} attendee documents for user ${uid}.`);
+    }
+  });
+
+
 // ── 2. Confirmation email when user registers attendance ──────────────────────
 exports.onAttendanceRegistered = region.firestore
   .document("satsangs/{satsangId}/attendees/{userId}")
@@ -1137,4 +1160,79 @@ exports.sendBroadcast = region.https.onCall(async (data, ctx) => {
     await sendMail(batch.join(","), subject, body);
   }
   return { sent: emails.length };
+});
+
+// ── 7. Admin: migration HTTP trigger to standardise phone formats to E.164 (+44) ─
+exports.migratePhoneNumbers = region.https.onRequest(async (req, res) => {
+  const results = {
+    usersAttempted: 0,
+    usersMigrated: 0,
+    attendeesAttempted: 0,
+    attendeesMigrated: 0,
+    logs: []
+  };
+
+  const normalizeToE164 = (rawPhone) => {
+    if (!rawPhone) return "";
+    let cleaned = rawPhone.trim().replace(/[^\d+]/g, "");
+    if (cleaned.startsWith("+00")) {
+      cleaned = "+" + cleaned.substring(3);
+    }
+    let digits = cleaned.replace(/\D/g, "");
+    if (digits.startsWith("00")) {
+      digits = digits.substring(2);
+    }
+    if (digits.startsWith("0")) {
+      digits = "44" + digits.substring(1);
+    }
+    if (digits.startsWith("440")) {
+      digits = "44" + digits.substring(3);
+    }
+    if (digits.startsWith("7") && digits.length === 10) {
+      digits = "44" + digits;
+    }
+    return "+" + digits;
+  };
+
+  try {
+    // 1. Migrate users collection
+    const usersSnap = await db.collection("users").get();
+    for (const doc of usersSnap.docs) {
+      const data = doc.data();
+      const uid = doc.id;
+      let rawPhone = data.phone;
+      if (!rawPhone) continue;
+
+      results.usersAttempted++;
+      const cleanPhone = normalizeToE164(rawPhone);
+
+      if (cleanPhone !== rawPhone) {
+        await db.collection("users").doc(uid).update({ phone: cleanPhone });
+        results.usersMigrated++;
+        results.logs.push(`User ${data.name || uid}: ${rawPhone} -> ${cleanPhone}`);
+      }
+    }
+
+    // 2. Migrate attendees subcollections (using collectionGroup)
+    const attendeesSnap = await db.collectionGroup("attendees").get();
+    for (const doc of attendeesSnap.docs) {
+      const data = doc.data();
+      const attendeeRef = doc.ref;
+      let rawPhone = data.userPhone;
+      if (!rawPhone) continue;
+
+      results.attendeesAttempted++;
+      const cleanPhone = normalizeToE164(rawPhone);
+
+      if (cleanPhone !== rawPhone) {
+        await attendeeRef.update({ userPhone: cleanPhone });
+        results.attendeesMigrated++;
+        results.logs.push(`Attendee ${data.userName || doc.id}: ${rawPhone} -> ${cleanPhone}`);
+      }
+    }
+
+    res.status(200).json({ success: true, results });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });

@@ -253,3 +253,8 @@ export function subscribeSatsang(id, callback) {
     if (snap.exists()) callback({ id: snap.id, ...snap.data() });
   });
 }
+
+export async function updateAttendeeWaNotified(satsangId, attendeeUid, notified = true) {
+  const attendeeRef = doc(db, SATSANGS, satsangId, ATTENDEES, attendeeUid);
+  await updateDoc(attendeeRef, { notifiedWa: notified, updatedAt: serverTimestamp() });
+}

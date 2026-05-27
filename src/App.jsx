@@ -7,7 +7,7 @@ import {
   getAllSatsangs, updateSatsang, cancelSatsang, getAllUsers, updateUserRole,
   getAttendees, checkAttendance, removeAttendance,
   getUserAttendanceSatsangs, enrollSeva, withdrawSeva, subscribeSatsang, updateUserGuests,
-  createUserProfile,
+  createUserProfile, updateAttendeeWaNotified,
 } from "./firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { functions } from "./firebase/config";
@@ -1377,7 +1377,20 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
                                 🕒 Applied: {fmtTimestamp(a.registeredAt)}
                               </span>
                             </div>
-                            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>📞 {a.userPhone} &nbsp;|&nbsp; ✉️ {a.userEmail}</div>
+                            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+                              <span
+                                onClick={() => {
+                                  const cleanPhone = formatPhoneForWa(a.userPhone);
+                                  window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, "_blank");
+                                }}
+                                style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                title="Chat on WhatsApp"
+                              >
+                                📞 <span style={{ textDecoration: "underline", color: C.gold }}>{displayPhone(a.userPhone)}</span>
+                                <span style={{ fontSize: 12, background: "rgba(125,184,127,0.15)", color: "#7db87f", padding: "1px 6px", borderRadius: 4, fontWeight: "bold", fontFamily: "sans-serif" }}>💬 Chat</span>
+                              </span>
+                              &nbsp;|&nbsp; ✉️ {a.userEmail}
+                            </div>
                             {renderAttendeeSevaStatus(a)}
                           </div>
                           <div style={{ display: "flex", gap: 8 }}>
@@ -1418,10 +1431,68 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
                                 🕒 Applied: {fmtTimestamp(a.registeredAt)}
                               </span>
                             </div>
-                            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>📞 {a.userPhone} &nbsp;|&nbsp; ✉️ {a.userEmail}</div>
+                            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+                              <span
+                                onClick={() => {
+                                  const cleanPhone = formatPhoneForWa(a.userPhone);
+                                  window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, "_blank");
+                                }}
+                                style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                title="Chat on WhatsApp"
+                              >
+                                📞 <span style={{ textDecoration: "underline", color: C.gold }}>{displayPhone(a.userPhone)}</span>
+                                <span style={{ fontSize: 12, background: "rgba(125,184,127,0.15)", color: "#7db87f", padding: "1px 6px", borderRadius: 4, fontWeight: "bold", fontFamily: "sans-serif" }}>💬 Chat</span>
+                              </span>
+                              &nbsp;|&nbsp; ✉️ {a.userEmail}
+                            </div>
                             {renderAttendeeSevaStatus(a)}
                           </div>
-                          <div>
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            {/* WhatsApp Waitlist Notification */}
+                            <button
+                              onClick={async () => {
+                                const isHost = s.organizerUid === user.uid;
+                                const hostName = s.organizerName || "the Host";
+                                const senderName = profile?.name || user?.displayName || "Admin";
+                                const cleanPhone = formatPhoneForWa(a.userPhone);
+                                
+                                let message = `Jai Guruji 🙏\n\nDear *${a.userName}*,\n\n`;
+                                if (isHost) {
+                                  message += `This is your host *${senderName}*. `;
+                                } else {
+                                  message += `This is *${senderName}* messaging you on behalf of the host, *${hostName}*. `;
+                                }
+                                
+                                message += `Thank you for your request to join Guruji's Satsang *${s.title}* on *${s.date}*. Due to space limitations, all confirmed spots are currently filled and your registration is currently placed on our *Waitlist*.\n\nWe will notify you immediately if any confirmed spots become available. Thank you for your understanding. 🙏\n\nShukrana Guruji Shukrana Guruji 🙏`;
+                                
+                                const encodedText = encodeURIComponent(message);
+                                window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`, "_blank");
+                                
+                                try {
+                                  await updateAttendeeWaNotified(satsangId, a.id, true);
+                                  setAt(prev => prev.map(item => item.id === a.id ? { ...item, notifiedWa: true } : item));
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }}
+                              style={{
+                                background: "none",
+                                border: `1px solid ${C.gold}`,
+                                color: C.gold,
+                                cursor: "pointer",
+                                fontSize: 12,
+                                fontWeight: "bold",
+                                padding: "6px 14px",
+                                borderRadius: 6,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                transition: "all 0.2s"
+                              }}
+                            >
+                              {a.notifiedWa ? "✓ WA Notified" : "💬 Send WA Notice"}
+                            </button>
+
                             <button onClick={() => approveAtt(a.id)} disabled={busy} style={{ background: C.gold, color: C.bg, border: "none", cursor: "pointer", fontSize: 12, fontWeight: "bold", padding: "6px 14px", borderRadius: 6 }}>
                               Confirm
                             </button>
@@ -1457,10 +1528,68 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
                                   🕒 Applied: {fmtTimestamp(a.registeredAt)}
                                 </span>
                               </div>
-                              <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>📞 {a.userPhone} &nbsp;|&nbsp; ✉️ {a.userEmail}</div>
+                              <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+                                <span
+                                  onClick={() => {
+                                    const cleanPhone = formatPhoneForWa(a.userPhone);
+                                    window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}`, "_blank");
+                                  }}
+                                  style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                  title="Chat on WhatsApp"
+                                >
+                                  📞 <span style={{ textDecoration: "underline", color: C.gold }}>{displayPhone(a.userPhone)}</span>
+                                  <span style={{ fontSize: 12, background: "rgba(125,184,127,0.15)", color: "#7db87f", padding: "1px 6px", borderRadius: 4, fontWeight: "bold", fontFamily: "sans-serif" }}>💬 Chat</span>
+                                </span>
+                                &nbsp;|&nbsp; ✉️ {a.userEmail}
+                              </div>
                               {renderAttendeeSevaStatus(a)}
                             </div>
-                            <div>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                              {/* WhatsApp Confirmation Notification Queue */}
+                              <button
+                                onClick={async () => {
+                                  const isHost = s.organizerUid === user.uid;
+                                  const hostName = s.organizerName || "the Host";
+                                  const senderName = profile?.name || user?.displayName || "Admin";
+                                  const cleanPhone = formatPhoneForWa(a.userPhone);
+                                  
+                                  let message = `Jai Guruji 🙏\n\nDear *${a.userName}*,\n\n`;
+                                  if (isHost) {
+                                    message += `This is your host *${senderName}*. `;
+                                  } else {
+                                    message += `This is *${senderName}* messaging you on behalf of the host, *${hostName}*. `;
+                                  }
+                                  
+                                  message += `We are pleased to confirm your attendance for Guruji's upcoming Satsang:\n\n🌹 *${s.title}*\n📅 *${s.date}* at *${s.time}*\n📍 *${s.address}, ${s.city}*\n\nWe look forward to gathering in devotion. Please reach out if you need any assistance.\n\nShukrana Guruji Shukrana Guruji 🙏`;
+                                  
+                                  const encodedText = encodeURIComponent(message);
+                                  window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`, "_blank");
+                                  
+                                  try {
+                                    await updateAttendeeWaNotified(satsangId, a.id, true);
+                                    setAt(prev => prev.map(item => item.id === a.id ? { ...item, notifiedWa: true } : item));
+                                  } catch (e) {
+                                    console.error(e);
+                                  }
+                                }}
+                                style={{
+                                  background: a.notifiedWa ? "none" : C.gold,
+                                  border: a.notifiedWa ? `1px solid ${C.gold}` : "none",
+                                  color: a.notifiedWa ? C.gold : C.bg,
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: "bold",
+                                  padding: "6px 14px",
+                                  borderRadius: 6,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  transition: "all 0.2s"
+                                }}
+                              >
+                                {a.notifiedWa ? "✓ WA Notified" : "💬 Notify on WA"}
+                              </button>
+
                               <button
                                 onClick={() => declineAtt(a.id)}
                                 disabled={busy}
@@ -1941,11 +2070,20 @@ function ProfileView({ user, profile, nav, notify }) {
       notify("Name is required", "err");
       return;
     }
+    
+    // Mandate and format country code
+    const cleanPhone = normalizeToE164(editForm.phone);
+    const phoneRegex = /^\+[1-9]\d{9,14}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      notify("Invalid phone format! Must contain country code starting with '+' (e.g. +447700900077) 🙏", "err");
+      return;
+    }
+
     setSaveBusy(true);
     try {
       await createUserProfile(user.uid, {
         name: editForm.name.trim(),
-        phone: editForm.phone.trim(),
+        phone: cleanPhone,
         address: editForm.address.trim(),
         city: editForm.city.trim(),
         postcode: editForm.postcode.trim()
@@ -2083,9 +2221,13 @@ function ProfileView({ user, profile, nav, notify }) {
                     width: "100%",
                     outline: "none"
                   }}
+                  placeholder="e.g. +447700900077"
                   value={editForm.phone}
                   onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                 />
+                <p style={{ fontSize: 11, color: C.gold, marginTop: 4, fontFamily: "sans-serif" }}>
+                  ⚠️ Mandated country code starting with '+' (e.g. <strong>+44</strong> for UK). Phone numbers starting with 0 will automatically convert.
+                </p>
               </div>
 
               {/* Address */}
@@ -2598,13 +2740,22 @@ function RegisterView({ nav, notify }) {
     if (!f.name || !f.email || !f.phone || !f.address || !f.city || !f.postcode || !f.password) { notify("Please fill all required fields", "err"); return; }
     if (f.password !== f.confirm) { notify("Passwords do not match", "err"); return; }
     if (f.password.length < 6) { notify("Password must be at least 6 characters", "err"); return; }
+
+    // Mandate and format country code
+    const cleanPhone = normalizeToE164(f.phone);
+    const phoneRegex = /^\+[1-9]\d{9,14}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      notify("Invalid phone format! Must contain country code starting with '+' (e.g. +447700900077) 🙏", "err");
+      return;
+    }
+
     setBusy(true);
     try {
       await registerUser({
         email: f.email,
         password: f.password,
         name: f.name,
-        phone: f.phone,
+        phone: cleanPhone,
         address: f.address,
         city: f.city,
         postcode: f.postcode,
@@ -2618,7 +2769,12 @@ function RegisterView({ nav, notify }) {
   return <FWrap title="Join the Sangat" sub="Create your account to find and host Satsangs">
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <FField label="Full Name *" v={f.name} on={set("name")} />
-      <FField label="Phone Number *" type="tel" v={f.phone} on={set("phone")} />
+      <div>
+        <FField label="Phone Number *" type="tel" v={f.phone} on={set("phone")} ph="e.g. +447700900077" />
+        <p style={{ fontSize: 11, color: C.gold, marginTop: -14, marginBottom: 14, fontFamily: "sans-serif", lineHeight: 1.4 }}>
+          ⚠️ Mandated country code starting with '+' (e.g. <strong>+44</strong> for UK). Phone numbers starting with 0 will automatically convert.
+        </p>
+      </div>
     </div>
     <FField label="Email Address *" type="email" v={f.email} on={set("email")} />
     <FField label="Street Address *" v={f.address} on={set("address")} />
@@ -2819,6 +2975,40 @@ function SCard({ s, nav }) {
     </button>
   );
 }
+
+const normalizeToE164 = (rawPhone) => {
+  if (!rawPhone) return "";
+  let cleaned = rawPhone.trim().replace(/[^\d+]/g, "");
+  if (cleaned.startsWith("+00")) {
+    cleaned = "+" + cleaned.substring(3);
+  }
+  let digits = cleaned.replace(/\D/g, "");
+  if (digits.startsWith("00")) {
+    digits = digits.substring(2);
+  }
+  if (digits.startsWith("0")) {
+    digits = "44" + digits.substring(1);
+  }
+  if (digits.startsWith("440")) {
+    digits = "44" + digits.substring(3);
+  }
+  if (digits.startsWith("7") && digits.length === 10) {
+    digits = "44" + digits;
+  }
+  return "+" + digits;
+};
+
+const formatPhoneForWa = (rawPhone) => {
+  if (!rawPhone) return "";
+  const normalized = normalizeToE164(rawPhone);
+  return normalized.replace(/\+/g, "");
+};
+
+const displayPhone = (phone) => {
+  if (!phone) return "";
+  return normalizeToE164(phone);
+};
+
 
 function Btn({ onClick, children, outline, ghost, disabled, full }) {
   return <button onClick={onClick} disabled={disabled} style={{
