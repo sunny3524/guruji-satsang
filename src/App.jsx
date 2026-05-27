@@ -138,6 +138,7 @@ function AppInner() {
   const [upcoming, setUpcoming] = useState([]);
   const [heroImg] = useState(GURUJI_IMGS[Math.floor(Math.random() * GURUJI_IMGS.length)]);
   const notify = (msg, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3600); };
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // ─── Zero-Dependency Native Hash Routing Sync ──────────────────────────
   useEffect(() => {
@@ -179,7 +180,7 @@ function AppInner() {
     ? [
       { l: "Find Satsang", v: "find" },
       { l: "Guidelines", v: "guidelines" },
-      { l: "Satsang Dashboard", v: "dashboard" },
+      { l: "Dashboard", v: "dashboard" },
       { l: "Profile", v: "profile" },
       ...(isAdmin ? [{ l: "⚙ Admin", v: "admin" }] : []),
       { l: "+ Host", v: "post", accent: true },
@@ -199,17 +200,50 @@ function AppInner() {
   );
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg,#1a0800 0%,#0f0500 100%)`, color: C.cream, fontFamily: "Georgia,'Times New Roman',serif" }}>
+      <style>{`
+        .nav-links-desktop {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+        }
+        .nav-hamburger-container {
+          display: none;
+          position: relative;
+        }
+        
+        @keyframes fadeInSlide {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 850px) {
+          .nav-links-desktop {
+            display: none;
+          }
+          .nav-hamburger-container {
+            display: block;
+          }
+        }
+      `}</style>
       <div style={{ height: 4, background: `linear-gradient(90deg,${C.red},${C.gold},${C.saffron},${C.gold},${C.red})` }} />
       {/* NAV */}
       <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", height: 66, background: "rgba(26,8,0,0.97)", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 4, zIndex: 100, backdropFilter: "blur(12px)" }}>
-        <button onClick={() => nav("home")} style={{ display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", cursor: "pointer" }}>
+        <button onClick={() => { setMenuOpen(false); nav("home"); }} style={{ display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", cursor: "pointer" }}>
           <img src={GURUJI_IMGS[0]} alt="Guruji" style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.gold}` }} onError={e => { e.target.style.display = "none"; }} />
-          <span>
+          <span style={{ textAlign: "left" }}>
             <span style={{ display: "block", fontSize: 17, fontWeight: 700, color: C.gold, letterSpacing: "0.02em" }}>Guruji Satsang App</span>
             <span style={{ display: "block", fontSize: 9, color: C.muted, letterSpacing: "0.2em", fontFamily: "sans-serif" }}>Jai Guruji</span>
           </span>
         </button>
-        <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+
+        {/* Desktop Navigation Links */}
+        <div className="nav-links-desktop">
           {navItems.map(item => (
             <button key={item.l} onClick={item.fn ? item.fn : () => nav(item.v)}
               style={item.accent
@@ -218,6 +252,169 @@ function AppInner() {
               {item.l}
             </button>
           ))}
+        </div>
+
+        {/* Mobile Hamburger Navigation */}
+        <div className="nav-hamburger-container">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{
+              background: "none",
+              border: `1px solid ${menuOpen ? C.gold : "rgba(212,151,42,0.3)"}`,
+              borderRadius: 8,
+              cursor: "pointer",
+              padding: "10px 12px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              transition: "all 0.2s ease",
+              position: "relative",
+              zIndex: 101,
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, width: 22, height: 16, justifyContent: "space-between", position: "relative" }}>
+              <span style={{
+                display: "block",
+                width: "100%",
+                height: 2,
+                background: C.gold,
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: menuOpen ? "translateY(7px) rotate(45deg)" : "none"
+              }} />
+              <span style={{
+                display: "block",
+                width: "100%",
+                height: 2,
+                background: C.gold,
+                transition: "all 0.15s ease-in-out",
+                opacity: menuOpen ? 0 : 1
+              }} />
+              <span style={{
+                display: "block",
+                width: "100%",
+                height: 2,
+                background: C.gold,
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: menuOpen ? "translateY(-7px) rotate(-45deg)" : "none"
+              }} />
+            </div>
+          </button>
+
+          {/* Background overlay click-dismisser */}
+          {menuOpen && (
+            <div 
+              onClick={() => setMenuOpen(false)}
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 98,
+                background: "transparent",
+              }}
+            />
+          )}
+
+          {/* Floating Dropdown Card */}
+          {menuOpen && (
+            <div style={{
+              position: "absolute",
+              top: 54,
+              right: 0,
+              width: 260,
+              background: "rgba(39, 14, 3, 0.98)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: `1px solid rgba(212, 151, 42, 0.25)`,
+              borderRadius: 14,
+              padding: "12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              boxShadow: "0 24px 64px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05) inset",
+              animation: "fadeInSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+              zIndex: 99,
+            }}>
+              {/* Home link always at the top of the hamburger, as requested */}
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  nav("home");
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  width: "100%",
+                  padding: "10px 14px",
+                  background: "none",
+                  border: "none",
+                  borderRadius: 8,
+                  color: C.cream,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s ease",
+                  fontFamily: "Georgia, serif"
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "rgba(212, 151, 42, 0.12)";
+                  e.target.style.color = C.gold;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "none";
+                  e.target.style.color = C.cream;
+                }}
+              >
+                Home
+              </button>
+
+              {navItems.map(item => (
+                <button
+                  key={item.l}
+                  onClick={async () => {
+                    setMenuOpen(false);
+                    if (item.fn) {
+                      await item.fn();
+                    } else {
+                      nav(item.v);
+                    }
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: item.accent ? C.gold : "none",
+                    border: "none",
+                    borderRadius: 8,
+                    color: item.accent ? C.bg : C.cream,
+                    fontSize: 14,
+                    fontWeight: item.accent ? 700 : 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.2s ease",
+                    fontFamily: "Georgia, serif"
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!item.accent) {
+                      e.target.style.background = "rgba(212, 151, 42, 0.12)";
+                      e.target.style.color = C.gold;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!item.accent) {
+                      e.target.style.background = "none";
+                      e.target.style.color = C.cream;
+                    }
+                  }}
+                >
+                  {item.l}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </nav>
       {toast && <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: toast.type === "err" ? "#5a1010" : "#3a1800", color: C.gold, padding: "13px 28px", borderRadius: 10, fontSize: 15, fontWeight: 600, zIndex: 9999, border: `1px solid ${C.border}`, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>{toast.msg}</div>}
