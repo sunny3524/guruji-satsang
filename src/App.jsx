@@ -12,8 +12,76 @@ import {
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { functions } from "./firebase/config";
 import { useAuth, AuthProvider } from "./hooks/useAuth";
-import { geocodeLocation, getDistanceKm } from "./utils/geoUtils";
+import { geocodeLocation, getDistanceKm, validateAddressWithGoogle } from "./utils/geoUtils";
 import { getRandomVachan } from "./utils/vachans";
+
+export const COUNTRY_DIAL_CODES = {
+  "United Kingdom": "44", "India": "91", "United States": "1", "Canada": "1",
+  "Australia": "61", "New Zealand": "64", "United Arab Emirates": "971",
+  "Singapore": "65", "South Africa": "27", "Germany": "49", "France": "33",
+  "Ireland": "353", "Kenya": "254", "Netherlands": "31", "Switzerland": "41",
+  "Malaysia": "60", "Hong Kong": "852"
+};
+
+export const SANGAT_COUNTRIES = [
+  "United Kingdom", "India", "United States", "Canada", "Australia", 
+  "New Zealand", "United Arab Emirates", "Singapore", "South Africa", 
+  "Germany", "France", "Ireland", "Kenya", "Netherlands", "Switzerland", 
+  "Malaysia", "Hong Kong", "Other"
+];
+
+export const COUNTRY_PHONE_EXAMPLES = {
+  "United Kingdom": "447700900077",
+  "India": "919876543210",
+  "United States": "12025550143",
+  "Canada": "12025550143",
+  "Australia": "61491570156",
+  "New Zealand": "6421345678",
+  "United Arab Emirates": "971501234567",
+  "Singapore": "6581234567",
+  "South Africa": "27821234567",
+  "Germany": "4915123456789",
+  "France": "33612345678",
+  "Ireland": "353871234567",
+  "Kenya": "254712345678",
+  "Netherlands": "31612345678",
+  "Switzerland": "41781234567",
+  "Malaysia": "60123456789",
+  "Hong Kong": "85291234567"
+};
+
+
+export function normalizePhoneWithCountry(rawPhone, countryName) {
+  if (!rawPhone) return "";
+  let clean = rawPhone.trim().replace(/\s+/g, "").replace(/[-()]/g, "");
+  
+  if (clean.startsWith("+")) {
+    return clean;
+  }
+  
+  const dialCode = COUNTRY_DIAL_CODES[countryName];
+  if (!dialCode) {
+    if (clean.startsWith("00")) {
+      return "+" + clean.slice(2);
+    }
+    return clean;
+  }
+  
+  if (clean.startsWith("00")) {
+    return "+" + clean.slice(2);
+  }
+  
+  if (clean.startsWith("0")) {
+    clean = clean.slice(1);
+  }
+  
+  if (clean.startsWith(dialCode)) {
+    return "+" + clean;
+  }
+  
+  return `+${dialCode}${clean}`;
+}
+
 const gurujiImages = import.meta.glob("./assets/images/*.{png,jpg,jpeg,bmp,JPG,JPEG}", { eager: true });
 const GURUJI_IMGS = Object.entries(gurujiImages)
   .sort(([pathA], [pathB]) => pathA.localeCompare(pathB))
@@ -677,6 +745,9 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
     if (dateComp !== 0) return dateComp;
     return (a.time || "").localeCompare(b.time || "");
   });
+
+  const within500 = sortedSatsangs.filter(s => s.distance === null || s.distance <= 500);
+  const over500 = sortedSatsangs.filter(s => s.distance !== null && s.distance > 500);
   // Render Label explaining the sequence
   let sequenceHeading = "Upcoming Satsangs";
   if (activeSearch) {
@@ -871,7 +942,7 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
       }}>
         <span>{sequenceHeading}</span>
         <span style={{ fontSize: 13, color: C.muted, fontWeight: "normal" }}>
-          {sortedSatsangs.length} {sortedSatsangs.length === 1 ? "satsang" : "satsangs"} found
+          {within500.length} {within500.length === 1 ? "satsang" : "satsangs"} found
         </span>
       </h3>
       {sortedSatsangs.length === 0 ? (
@@ -888,15 +959,57 @@ function FindView({ search, setSearch, nav, user, profile, upcoming }) {
           )}
         </Empty>
       ) : (
-        <div style={{
-          display: "flex",
-          gap: 16,
-          flexWrap: "wrap"
-        }}>
-          {sortedSatsangs.map(s => (
-            <SCard key={s.id} s={s} nav={nav} />
-          ))}
-        </div>
+        <>
+          {/* Main Proximity / Default List (Within 500 KM or No Distance) */}
+          {within500.length === 0 ? (
+            <div style={{ color: C.muted, fontStyle: "italic", fontSize: 14, marginBottom: 28, padding: "12px 0" }}>
+              No upcoming Satsangs found near you.
+            </div>
+          ) : (
+            <div style={{
+              display: "flex",
+              gap: 16,
+              flexWrap: "wrap",
+              marginBottom: over500.length > 0 ? 40 : 0
+            }}>
+              {within500.map(s => (
+                <SCard key={s.id} s={s} nav={nav} />
+              ))}
+            </div>
+          )}
+
+          {/* Farther Away List (Over 500 KM) */}
+          {over500.length > 0 && (
+            <>
+              <h3 style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: C.cream,
+                marginTop: 28,
+                marginBottom: 20,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderTop: `1px solid ${C.border}`,
+                paddingTop: 28
+              }}>
+                <span>Satsangs farther away</span>
+                <span style={{ fontSize: 13, color: C.muted, fontWeight: "normal" }}>
+                  {over500.length} {over500.length === 1 ? "satsang" : "satsangs"} found
+                </span>
+              </h3>
+              <div style={{
+                display: "flex",
+                gap: 16,
+                flexWrap: "wrap"
+              }}>
+                {over500.map(s => (
+                  <SCard key={s.id} s={s} nav={nav} />
+                ))}
+              </div>
+            </>
+          )}
+        </>
       )}
       {/* Embedded CSS animation in component or via style tag */}
       <style>{`
@@ -1045,7 +1158,7 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
         <body>
           <div class="header-info">
             <h1>🌹 Day-of Seva Allocation Sheet</h1>
-            <h2><strong>Event:</strong> ${s.title} &nbsp;|&nbsp; <strong>Date:</strong> ${s.date} at ${s.time} &nbsp;|&nbsp; <strong>Venue:</strong> ${s.address}, ${s.city}</h2>
+            <h2><strong>Event:</strong> ${s.title} &nbsp;|&nbsp; <strong>Date:</strong> ${s.date} at ${s.time} &nbsp;|&nbsp; <strong>Venue:</strong> ${s.addressLine1 || s.address}, ${s.city}</h2>
             <button onclick="window.print()" style="padding: 10px 20px; background: #d4972a; border: none; color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px;">Print Seva Sheet</button>
           </div>
           
@@ -1249,7 +1362,7 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
       const meta = STANDARD_SEVAS.find(x => x.id === svId);
       try {
         const sendSevaConf = httpsCallable(functions, "sendSevaConfirmation");
-        await sendSevaConf({ userEmail: user.email, userName: profile?.name, sevaName: meta?.name, satsangTitle: s.title, satsangDate: `${s.date} at ${s.time}`, satsangAddress: `${s.address}, ${s.city}` });
+        await sendSevaConf({ userEmail: user.email, userName: profile?.name, sevaName: meta?.name, satsangTitle: s.title, satsangDate: `${s.date} at ${s.time}`, satsangAddress: `${s.addressLine1 || s.address}, ${s.city}` });
       } catch (e) { console.warn("Email fn:", e); }
       notify("Shukrana Guruji · Seva enrolled 🙏");
     } catch (e) { notify(e.message, "err"); }
@@ -1280,7 +1393,7 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
         )}
         <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 10, fontFamily: "sans-serif" }}>{fmtDate(s.date)} · {fmtTime(s.time)}</div>
         <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 10px" }}>{s.title}</h2>
-        <div style={{ fontSize: 14, color: C.muted, marginBottom: 14 }}>📍 {s.address}, {s.city} {s.postcode}</div>
+        <div style={{ fontSize: 14, color: C.muted, marginBottom: 14 }}>📍 {s.addressLine1 || s.address}, {s.city} {s.postcode}</div>
         {s.description && <p style={{ fontSize: 15, color: "#c0a060", lineHeight: 1.8, marginBottom: 22 }}>{s.description}</p>}
         <div style={{ display: "flex", gap: 28, marginBottom: 22, flexWrap: "wrap" }}>
           {[["Attending", `${s.attendeeCount || 0}/${s.maxAttendees}`, false], ["Spots Left", left, left < 20], ["Seva Roles", Object.keys(s.sevas || {}).length, false]].map(([l, v, h]) => (
@@ -1865,14 +1978,64 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
 }
 // ─── Post ─────────────────────────────────────────────────────────────────────
 function PostView({ user, profile, nav, notify, onRefresh }) {
-  const [f, setF] = useState({ title: "", city: "", postcode: "", address: "", date: "", time: "", maxAttendees: 100, description: "" });
+  const [f, setF] = useState({
+    title: "",
+    addressLine1: "",
+    addressLine2: "",
+    addressLine3: "",
+    state: "",
+    city: "",
+    postcode: "",
+    country: profile?.country || "United Kingdom",
+    customCountry: "",
+    date: "",
+    time: "",
+    maxAttendees: 100,
+    description: ""
+  });
   const [chosenSv, setChosenSv] = useState([]);
   const [showSevaPanel, setShowSevaPanel] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("guruji.showSevaPanel") === "true";
   });
   const [busy, setBusy] = useState(false);
+  const [useProfileAddress, setUseProfileAddress] = useState(false);
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }));
+
+  const handleAddressFieldChange = k => e => {
+    setUseProfileAddress(false);
+    setF(p => ({ ...p, [k]: e.target.value }));
+  };
+
+  const handleUseProfileAddressChange = (e) => {
+    const checked = e.target.checked;
+    setUseProfileAddress(checked);
+    if (checked && profile) {
+      setF(p => ({
+        ...p,
+        addressLine1: profile.addressLine1 || "",
+        addressLine2: profile.addressLine2 || "",
+        addressLine3: profile.addressLine3 || "",
+        state: profile.state || "",
+        city: profile.city || "",
+        postcode: profile.postcode || "",
+        country: profile.country || "United Kingdom",
+        customCountry: profile.country === "Other" ? (profile.customCountry || "") : ""
+      }));
+    } else {
+      setF(p => ({
+        ...p,
+        addressLine1: "",
+        addressLine2: "",
+        addressLine3: "",
+        state: "",
+        city: "",
+        postcode: "",
+        country: "United Kingdom",
+        customCountry: ""
+      }));
+    }
+  };
   // Get current date in London timezone for restricting date input
   const ukTimeStr = new Date().toLocaleString("sv-SE", { timeZone: "Europe/London" });
   const currentDate = ukTimeStr.replace(",", "").trim().split(/\s+/)[0];
@@ -1884,7 +2047,11 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
     window.localStorage.setItem("guruji.showSevaPanel", showSevaPanel ? "true" : "false");
   }, [showSevaPanel]);
   const submit = async () => {
-    if (!f.title || !f.city || !f.address || !f.date || !f.time) { notify("Please fill all required fields", "err"); return; }
+    const targetCountry = f.country === "Other" ? f.customCountry.trim() : f.country;
+    if (!f.title || !f.addressLine1.trim() || !f.city.trim() || !f.postcode.trim() || !targetCountry || !f.date || !f.time) {
+      notify("Please fill all required fields", "err");
+      return;
+    }
     // Date/time elapsed validation
     const checkTimeStr = new Date().toLocaleString("sv-SE", { timeZone: "Europe/London" });
     const cleanStr = checkTimeStr.replace(",", "");
@@ -1897,27 +2064,45 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
     }
     setBusy(true);
     try {
-      // Geocode city and postcode for physical coordinates
-      let latitude = null;
-      let longitude = null;
-      try {
-        let coords = await geocodeLocation(`${f.city} ${f.postcode || ""}`);
-        if (!coords && f.city) {
-          coords = await geocodeLocation(f.city);
-        }
-        if (coords) {
-          latitude = coords.lat;
-          longitude = coords.lng;
-        }
-      } catch (ge) {
-        console.warn("Geocoding during event creation failed:", ge);
+      // 1. Google Address Verification / geocode extraction
+      const valResult = await validateAddressWithGoogle({
+        addressLine1: f.addressLine1.trim(),
+        addressLine2: f.addressLine2.trim(),
+        addressLine3: f.addressLine3.trim(),
+        city: f.city.trim(),
+        state: f.state.trim(),
+        postcode: f.postcode.trim(),
+        country: targetCountry
+      });
+      
+      if (!valResult.valid) {
+        notify(valResult.error, "err");
+        setBusy(false);
+        return;
       }
+      
+      const latitude = valResult.lat || null;
+      const longitude = valResult.lng || null;
+
       const sevas = chosenSv.reduce((acc, sv) => ({
         ...acc,
         [sv.id]: { id: sv.id, needed: sv.needed, opted: 0, confirmed: sv.confirmed || 0, enrolled: [] }
       }), {});
+      
       await createSatsang({
-        ...f, maxAttendees: +f.maxAttendees, sevas,
+        title: f.title,
+        description: f.description,
+        addressLine1: f.addressLine1.trim(),
+        addressLine2: f.addressLine2.trim(),
+        addressLine3: f.addressLine3.trim(),
+        state: f.state.trim(),
+        city: f.city.trim(),
+        postcode: f.postcode.trim(),
+        country: targetCountry,
+        date: f.date,
+        time: f.time,
+        maxAttendees: +f.maxAttendees,
+        sevas,
         latitude,
         longitude,
         organizerName: profile?.name || user.displayName,
@@ -1930,14 +2115,67 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
     } catch (e) { notify(e.message, "err"); }
     setBusy(false);
   };
+
+  const selectedCountry = f.country;
+  let postcodePlaceholder = "e.g. Zip or Postal Code";
+  if (selectedCountry === "United Kingdom") postcodePlaceholder = "e.g. EN4 0DU";
+  else if (selectedCountry === "India") postcodePlaceholder = "e.g. 110001";
+  else if (selectedCountry === "United States") postcodePlaceholder = "e.g. 90210";
+  else if (selectedCountry === "Canada") postcodePlaceholder = "e.g. K1A 0B1";
+
   return (
     <FWrap title="Host a Satsang" sub="Open your home to Guruji's Sangat">
       <FField label="Satsang Title *" v={f.title} on={set("title")} ph="e.g. Shivratri Satsang" />
       <FField label="Description" v={f.description} on={set("description")} ph="Brief description…" />
-      <FField label="Venue Address *" v={f.address} on={set("address")} ph="Full street address" />
+      
+      {/* Auto-populate Profile Address Option */}
+      {profile && (profile.addressLine1 || profile.city) && (
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 10, background: "rgba(212, 151, 42, 0.08)", border: `1px solid rgba(212, 151, 42, 0.25)`, borderRadius: 8, padding: "12px 16px" }}>
+          <input
+            type="checkbox"
+            id="useProfileAddress"
+            checked={useProfileAddress}
+            onChange={handleUseProfileAddressChange}
+            style={{ width: 18, height: 18, cursor: "pointer", accentColor: C.gold }}
+          />
+          <label htmlFor="useProfileAddress" style={{ color: C.gold, fontSize: 14, fontWeight: 700, cursor: "pointer", userSelect: "none" }}>
+            Use my profile address as the Satsang venue
+          </label>
+        </div>
+      )}
+
+      {/* Country Select */}
+      <div style={{ marginBottom: 18 }}>
+        <Label>Country *</Label>
+        <select
+          value={f.country}
+          onChange={(e) => {
+            setUseProfileAddress(false);
+            setF(p => ({ ...p, country: e.target.value }));
+          }}
+          style={{ width: "100%", background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px", color: C.cream, fontSize: 15, fontFamily: "Georgia,serif", outline: "none", boxSizing: "border-box", height: 45 }}
+        >
+          {SANGAT_COUNTRIES.map(c => (
+            <option key={c} value={c} style={{ background: C.bg }}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      {f.country === "Other" && (
+        <FField label="Custom Country Name *" v={f.customCountry} on={handleAddressFieldChange("customCountry")} ph="e.g. Ireland" />
+      )}
+
+      <FField label="Venue Address Line 1 *" v={f.addressLine1} on={handleAddressFieldChange("addressLine1")} ph="Street address, P.O. box, building" />
+      <FField label="Venue Address Line 2 (Optional)" v={f.addressLine2} on={handleAddressFieldChange("addressLine2")} ph="Apartment, suite, unit, etc." />
+      
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <FField label="City *" v={f.city} on={set("city")} />
-        <FField label="Postcode" v={f.postcode} on={set("postcode")} />
+        <FField label="Venue Address Line 3 (Optional)" v={f.addressLine3} on={handleAddressFieldChange("addressLine3")} ph="Sublocality, landmark" />
+        <FField label="State / County / Region" v={f.state} on={handleAddressFieldChange("state")} ph="e.g. Punjab" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <FField label="City *" v={f.city} on={handleAddressFieldChange("city")} />
+        <FField label="Zip / Postal Code *" v={f.postcode} on={handleAddressFieldChange("postcode")} ph={postcodePlaceholder} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <FField label="Date *" type="date" v={f.date} on={set("date")} min={currentDate} />
@@ -1960,7 +2198,6 @@ function PostView({ user, profile, nav, notify, onRefresh }) {
               return (
                 <div key={sv.id} style={{ background: ch ? `rgba(212,151,42,0.07)` : "rgba(255,255,255,0.02)", border: `1px solid ${ch ? C.gold : C.border}`, borderRadius: 10, overflow: "hidden" }}>
                   <button onClick={() => toggleSv(sv.id)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, padding: "13px 14px 10px", width: "100%", textAlign: "left", color: C.cream }}>
-                    <span style={{ fontSize: 22 }}>{sv.icon}</span>
                     <span style={{ fontWeight: 700, fontSize: 13 }}>{sv.name}</span>
                     <span style={{ fontSize: 11, color: C.muted }}>{sv.desc}</span>
                   </button>
@@ -2119,39 +2356,86 @@ function ProfileView({ user, profile, nav, notify }) {
   const [guestBusy, setGuestBusy] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", address: "", city: "", postcode: "" });
+  const [editForm, setEditForm] = useState({
+    name: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    addressLine3: "",
+    state: "",
+    city: "",
+    postcode: "",
+    country: "United Kingdom",
+    customCountry: ""
+  });
   const [saveBusy, setSaveBusy] = useState(false);
 
   const startEditing = () => {
+    const isOther = profile?.country && !SANGAT_COUNTRIES.filter(c => c !== "Other").includes(profile.country);
     setEditForm({
       name: profile?.name || "",
       phone: profile?.phone || "",
-      address: profile?.address || "",
+      addressLine1: profile?.addressLine1 || profile?.address || "",
+      addressLine2: profile?.addressLine2 || "",
+      addressLine3: profile?.addressLine3 || "",
+      state: profile?.state || "",
       city: profile?.city || "",
-      postcode: profile?.postcode || ""
+      postcode: profile?.postcode || "",
+      country: isOther ? "Other" : (profile?.country || "United Kingdom"),
+      customCountry: isOther ? profile.country : ""
     });
     setIsEditing(true);
   };
 
   const handleSaveProfile = async () => {
-    if (!editForm.name.trim()) {
-      notify("Name is required", "err");
+    const targetCountry = editForm.country === "Other" ? editForm.customCountry.trim() : editForm.country;
+    if (!editForm.name.trim() || !editForm.phone.trim() || !editForm.addressLine1.trim() || !editForm.city.trim() || !editForm.postcode.trim() || !targetCountry) {
+      notify("Please fill all required fields", "err");
       return;
     }
     setSaveBusy(true);
     try {
+      // 1. Google Address Verification
+      const valResult = await validateAddressWithGoogle({
+        addressLine1: editForm.addressLine1.trim(),
+        addressLine2: editForm.addressLine2.trim(),
+        addressLine3: editForm.addressLine3.trim(),
+        city: editForm.city.trim(),
+        state: editForm.state.trim(),
+        postcode: editForm.postcode.trim(),
+        country: targetCountry
+      });
+      
+      if (!valResult.valid) {
+        notify(valResult.error, "err");
+        setSaveBusy(false);
+        return;
+      }
+      
+      const latitude = valResult.lat || null;
+      const longitude = valResult.lng || null;
+      
+      // 2. Phone normalization
+      const formattedPhone = normalizePhoneWithCountry(editForm.phone, targetCountry);
+      
       await createUserProfile(user.uid, {
         name: editForm.name.trim(),
-        phone: editForm.phone.trim(),
-        address: editForm.address.trim(),
+        phone: formattedPhone,
+        addressLine1: editForm.addressLine1.trim(),
+        addressLine2: editForm.addressLine2.trim(),
+        addressLine3: editForm.addressLine3.trim(),
+        state: editForm.state.trim(),
         city: editForm.city.trim(),
-        postcode: editForm.postcode.trim()
+        postcode: editForm.postcode.trim(),
+        country: targetCountry,
+        latitude,
+        longitude
       });
       setIsEditing(false);
       notify("Profile updated successfully! 🙏");
     } catch (err) {
       console.error(err);
-      notify("Failed to update profile", "err");
+      notify(err.message || "Failed to update profile", "err");
     }
     setSaveBusy(false);
   };
@@ -2266,9 +2550,56 @@ function ProfileView({ user, profile, nav, notify }) {
                 />
               </div>
 
+              {/* Country */}
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Country *</label>
+                <select
+                  style={{
+                    background: C.card,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    color: C.cream,
+                    fontSize: 14,
+                    width: "100%",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    height: 38
+                  }}
+                  value={editForm.country}
+                  onChange={e => setEditForm(prev => ({ ...prev, country: e.target.value }))}
+                >
+                  {SANGAT_COUNTRIES.map(c => (
+                    <option key={c} value={c} style={{ background: C.bg }}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Custom Country */}
+              {editForm.country === "Other" && (
+                <div>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Custom Country Name *</label>
+                  <input
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 14,
+                      width: "100%",
+                      outline: "none"
+                    }}
+                    value={editForm.customCountry}
+                    onChange={e => setEditForm(prev => ({ ...prev, customCountry: e.target.value }))}
+                    placeholder="e.g. Ireland"
+                  />
+                </div>
+              )}
+
               {/* Phone */}
               <div>
-                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Phone Number</label>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Phone Number *</label>
                 <input
                   style={{
                     background: "none",
@@ -2282,12 +2613,19 @@ function ProfileView({ user, profile, nav, notify }) {
                   }}
                   value={editForm.phone}
                   onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder={`e.g. +${COUNTRY_PHONE_EXAMPLES[editForm.country] || "353871234567"}`}
                 />
+                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+                  {editForm.country === "Other"
+                    ? "⚠️ Please enter country code starting with '+' e.g. +353871234567"
+                    : `⚠️ Please enter country code (e.g. +${COUNTRY_PHONE_EXAMPLES[editForm.country]}), otherwise it will be prefixed with +${COUNTRY_DIAL_CODES[editForm.country]} by default.`
+                  }
+                </div>
               </div>
 
-              {/* Address */}
+              {/* Address Line 1 */}
               <div>
-                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Address</label>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Address Line 1 *</label>
                 <input
                   style={{
                     background: "none",
@@ -2299,15 +2637,76 @@ function ProfileView({ user, profile, nav, notify }) {
                     width: "100%",
                     outline: "none"
                   }}
-                  value={editForm.address}
-                  onChange={e => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+                  value={editForm.addressLine1}
+                  onChange={e => setEditForm(prev => ({ ...prev, addressLine1: e.target.value }))}
+                  placeholder="Street address, P.O. box, etc."
                 />
+              </div>
+
+              {/* Address Line 2 */}
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Address Line 2 (Optional)</label>
+                <input
+                  style={{
+                    background: "none",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    color: C.cream,
+                    fontSize: 14,
+                    width: "100%",
+                    outline: "none"
+                  }}
+                  value={editForm.addressLine2}
+                  onChange={e => setEditForm(prev => ({ ...prev, addressLine2: e.target.value }))}
+                  placeholder="Apartment, suite, unit, etc."
+                />
+              </div>
+
+              {/* Address Line 3 & State Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Address Line 3 (Optional)</label>
+                  <input
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 14,
+                      width: "100%",
+                      outline: "none"
+                    }}
+                    value={editForm.addressLine3}
+                    onChange={e => setEditForm(prev => ({ ...prev, addressLine3: e.target.value }))}
+                    placeholder="Sublocality, landmark"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>State / County / Region</label>
+                  <input
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 14,
+                      width: "100%",
+                      outline: "none"
+                    }}
+                    value={editForm.state}
+                    onChange={e => setEditForm(prev => ({ ...prev, state: e.target.value }))}
+                    placeholder="e.g. Punjab"
+                  />
+                </div>
               </div>
 
               {/* City and Postcode */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>City</label>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>City *</label>
                   <input
                     style={{
                       background: "none",
@@ -2324,7 +2723,7 @@ function ProfileView({ user, profile, nav, notify }) {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Postcode</label>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Zip / Postal Code *</label>
                   <input
                     style={{
                       background: "none",
@@ -2338,6 +2737,12 @@ function ProfileView({ user, profile, nav, notify }) {
                     }}
                     value={editForm.postcode}
                     onChange={e => setEditForm(prev => ({ ...prev, postcode: e.target.value }))}
+                    placeholder={
+                      editForm.country === "United Kingdom" ? "e.g. EN4 0DU" :
+                      editForm.country === "India" ? "e.g. 110001" :
+                      editForm.country === "United States" ? "e.g. 90210" :
+                      editForm.country === "Canada" ? "e.g. K1A 0B1" : "e.g. Zip code"
+                    }
                   />
                 </div>
               </div>
@@ -2386,9 +2791,13 @@ function ProfileView({ user, profile, nav, notify }) {
                 ["Name", profile?.name],
                 ["Email", user.email],
                 ["Phone", profile?.phone],
+                ["Country", profile?.country],
+                ["Address Line 1", profile?.addressLine1 || profile?.address],
+                ["Address Line 2", profile?.addressLine2],
+                ["Address Line 3", profile?.addressLine3],
+                ["State / County / Region", profile?.state],
                 ["City", profile?.city],
-                ["Address", profile?.address],
-                ["Postcode", profile?.postcode]
+                ["Zip / Postal Code", profile?.postcode]
               ].map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 14, paddingBottom: 10, marginBottom: 10, borderBottom: `1px solid ${C.border}`, gap: 12, flexWrap: "wrap" }}>
                   <span style={{ color: C.muted }}>{k}</span>
@@ -2764,7 +3173,21 @@ function LoginView({ nav, notify }) {
 }
 
 function RegisterView({ nav, notify }) {
-  const [f, setF] = useState({ name: "", email: "", phone: "", address: "", city: "", postcode: "", password: "", confirm: "" });
+  const [f, setF] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    addressLine3: "",
+    state: "",
+    city: "",
+    postcode: "",
+    country: "United Kingdom",
+    customCountry: "",
+    password: "",
+    confirm: ""
+  });
   const [busy, setBusy] = useState(false);
   const [guests, setGuests] = useState([]);
   const [newGuestName, setNewGuestName] = useState("");
@@ -2792,19 +3215,52 @@ function RegisterView({ nav, notify }) {
     setGuests(prev => prev.filter(g => g.id !== id));
   };
   const submit = async () => {
-    if (!f.name || !f.email || !f.phone || !f.address || !f.city || !f.postcode || !f.password) { notify("Please fill all required fields", "err"); return; }
+    const targetCountry = f.country === "Other" ? f.customCountry.trim() : f.country;
+    if (!f.name.trim() || !f.email.trim() || !f.phone.trim() || !f.addressLine1.trim() || !f.city.trim() || !f.postcode.trim() || !targetCountry || !f.password) {
+      notify("Please fill all required fields", "err");
+      return;
+    }
     if (f.password !== f.confirm) { notify("Passwords do not match", "err"); return; }
     if (f.password.length < 6) { notify("Password must be at least 6 characters", "err"); return; }
     setBusy(true);
     try {
+      // 1. Google Address Verification
+      const valResult = await validateAddressWithGoogle({
+        addressLine1: f.addressLine1.trim(),
+        addressLine2: f.addressLine2.trim(),
+        addressLine3: f.addressLine3.trim(),
+        city: f.city.trim(),
+        state: f.state.trim(),
+        postcode: f.postcode.trim(),
+        country: targetCountry
+      });
+      
+      if (!valResult.valid) {
+        notify(valResult.error, "err");
+        setBusy(false);
+        return;
+      }
+      
+      const latitude = valResult.lat || null;
+      const longitude = valResult.lng || null;
+      
+      // 2. Phone normalization
+      const formattedPhone = normalizePhoneWithCountry(f.phone, targetCountry);
+      
       await registerUser({
-        email: f.email,
+        email: f.email.trim(),
         password: f.password,
-        name: f.name,
-        phone: f.phone,
-        address: f.address,
-        city: f.city,
-        postcode: f.postcode,
+        name: f.name.trim(),
+        phone: formattedPhone,
+        addressLine1: f.addressLine1.trim(),
+        addressLine2: f.addressLine2.trim(),
+        addressLine3: f.addressLine3.trim(),
+        state: f.state.trim(),
+        city: f.city.trim(),
+        postcode: f.postcode.trim(),
+        country: targetCountry,
+        latitude,
+        longitude,
         guests
       });
       notify(`Jai Guruji! Welcome to the Sangat, ${f.name} 🙏`);
@@ -2812,17 +3268,61 @@ function RegisterView({ nav, notify }) {
     } catch (e) { notify(e.message.replace("Firebase:", "").trim(), "err"); }
     setBusy(false);
   };
+
+  const selectedCountry = f.country;
+  const dialCode = COUNTRY_DIAL_CODES[selectedCountry];
+  const phoneHelpText = selectedCountry === "Other"
+    ? "⚠️ Please enter country code starting with '+' e.g. +353871234567"
+    : `⚠️ Please enter country code (e.g. +${COUNTRY_PHONE_EXAMPLES[selectedCountry]}), otherwise it will be prefixed with +${dialCode} by default.`;
+
+  let postcodePlaceholder = "e.g. Zip or Postal Code";
+  if (selectedCountry === "United Kingdom") postcodePlaceholder = "e.g. EN4 0DU";
+  else if (selectedCountry === "India") postcodePlaceholder = "e.g. 110001";
+  else if (selectedCountry === "United States") postcodePlaceholder = "e.g. 90210";
+  else if (selectedCountry === "Canada") postcodePlaceholder = "e.g. K1A 0B1";
+
   return <FWrap title="Join the Sangat" sub="Create your account to find and host Satsangs">
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <FField label="Full Name *" v={f.name} on={set("name")} />
-      <FField label="Phone Number *" type="tel" v={f.phone} on={set("phone")} />
+      
+      <div style={{ marginBottom: 18 }}>
+        <Label>Country *</Label>
+        <select
+          value={f.country}
+          onChange={set("country")}
+          style={{ width: "100%", background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px", color: C.cream, fontSize: 15, fontFamily: "Georgia,serif", outline: "none", boxSizing: "border-box", height: 45 }}
+        >
+          {SANGAT_COUNTRIES.map(c => (
+            <option key={c} value={c} style={{ background: C.bg }}>{c}</option>
+          ))}
+        </select>
+      </div>
     </div>
-    <FField label="Email Address *" type="email" v={f.email} on={set("email")} />
-    <FField label="Street Address *" v={f.address} on={set("address")} />
+
+    {f.country === "Other" && (
+      <FField label="Custom Country Name *" v={f.customCountry} on={set("customCountry")} ph="e.g. Ireland" />
+    )}
+
+    <div style={{ marginBottom: 18 }}>
+      <FField label="Phone Number *" type="tel" v={f.phone} on={set("phone")} ph={`e.g. +${COUNTRY_PHONE_EXAMPLES[selectedCountry] || "353871234567"}`} />
+      <div style={{ color: C.muted, fontSize: 11, marginTop: -12, marginBottom: 14 }}>{phoneHelpText}</div>
+    </div>
+
+    <FField label="Address Line 1 *" v={f.addressLine1} on={set("addressLine1")} ph="Street address, P.O. box, company name" />
+    <FField label="Address Line 2 (Optional)" v={f.addressLine2} on={set("addressLine2")} ph="Apartment, suite, unit, building, floor, etc." />
+    
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <FField label="Address Line 3 (Optional)" v={f.addressLine3} on={set("addressLine3")} ph="Sublocality, landmark" />
+      <FField label="State / County / Region" v={f.state} on={set("state")} ph="e.g. Punjab" />
+    </div>
+
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <FField label="City *" v={f.city} on={set("city")} />
-      <FField label="Postcode *" v={f.postcode} on={set("postcode")} />
+      <FField label="Zip / Postal Code *" v={f.postcode} on={set("postcode")} ph={postcodePlaceholder} />
     </div>
+
+    <FField label="Email Address *" type="email" v={f.email} on={set("email")} />
+
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
       <FField label="Password *" type="password" v={f.password} on={set("password")} />
       <FField label="Confirm Password *" type="password" v={f.confirm} on={set("confirm")} />

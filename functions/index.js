@@ -162,7 +162,7 @@ function satsangEmailBlock(s) {
     <div style="background:#270e03;border:1px solid #5c2a0a;border-radius:10px;padding:20px 24px;margin:16px 0;">
       <h3 style="color:#d4972a;margin:0 0 8px">${s.title}</h3>
       <p style="color:#c0a878;margin:4px 0">📅 ${s.date} at ${s.time}</p>
-      <p style="color:#c0a878;margin:4px 0">📍 ${s.address}, ${s.city} ${s.postcode}</p>
+      <p style="color:#c0a878;margin:4px 0">📍 ${s.addressLine1 || s.address || ""}, ${s.city} ${s.postcode}</p>
     </div>`;
 }
 
@@ -1138,3 +1138,181 @@ exports.sendBroadcast = region.https.onCall(async (data, ctx) => {
   }
   return { sent: emails.length };
 });
+
+// ── 7. Real-time Attendee Sync Trigger ──────────────────────────────────────────
+exports.onUserUpdated = region.firestore
+  .document("users/{uid}")
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    const uid = context.params.uid;
+    
+    // Check if phone or address details changed
+    const phoneChanged = before.phone !== after.phone;
+    const addressLine1Changed = before.addressLine1 !== after.addressLine1;
+    const cityChanged = before.city !== after.city;
+    const postcodeChanged = before.postcode !== after.postcode;
+    const countryChanged = before.country !== after.country;
+    
+    if (!phoneChanged && !addressLine1Changed && !cityChanged && !postcodeChanged && !countryChanged) {
+      return null;
+    }
+    
+    console.log(`User ${uid} updated profile. Propagating changes to attendees subcollections.`);
+    
+    // Sweep all satsangs and find attendees subcollections where this user is enrolled
+    const satsangsSnap = await db.collection("satsangs").get();
+    const batch = db.batch();
+    let count = 0;
+    
+    for (const satsangDoc of satsangsSnap.docs) {
+      const attendeeRef = db.collection("satsangs").doc(satsangDoc.id).collection("attendees").doc(uid);
+      const attendeeSnap = await attendeeRef.get();
+      if (attendeeSnap.exists) {
+        batch.update(attendeeRef, {
+          userPhone: after.phone || "",
+          userAddress: after.addressLine1 || after.address || "",
+          userCity: after.city || "",
+          userPostcode: after.postcode || "",
+          userCountry: after.country || "United Kingdom",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        count++;
+      }
+    }
+    
+    if (count > 0) {
+      await batch.commit();
+      console.log(`Propagated updates to ${count} attendee records.`);
+    } else {
+      console.log(`No active attendee records found for user ${uid}.`);
+    }
+    return null;
+  });
+
+// ── 8. Administrative Migration: Addresses & Phone Numbers ────────────────────
+exports.migrateAddressesAndPhones = region.https.onRequest(async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== "GurujiBlessings108") {
+    return res.status(403).send("Unauthorized: Invalid administrative secret key");
+  }
+  
+  try {
+    const usersSnap = await db.collection("users").get();
+    const satsangsSnap = await db.collection("satsangs").get();
+    
+    const userBatch = db.batch();
+    let migratedUsersCount = 0;
+    
+    // 1. Migrate Users address and phone formatting
+    usersSnap.docs.forEach(userDoc => {
+      const uData = userDoc.data();
+      const updates = {};
+      let changed = false;
+      
+      // Address migration
+      if (uData.address && !uData.addressLine1) {
+        updates.addressLine1 = uData.address;
+        updates.addressLine2 = uData.addressLine2 || "";
+        updates.addressLine3 = uData.addressLine3 || "";
+        updates.state = uData.state || "";
+        updates.country = uData.country || "United Kingdom";
+        changed = true;
+      } else if (!uData.country) {
+        updates.country = "United Kingdom";
+        changed = true;
+      }
+      
+      // Phone number normalization
+      if (uData.phone) {
+        let cleanPhone = uData.phone.trim().replace(/\s+/g, "").replace(/[-()]/g, "");
+        const userCountry = updates.country || uData.country || "United Kingdom";
+        
+        const countryDialCodes = {
+          "United Kingdom": "44", "India": "91", "United States": "1", "Canada": "1",
+          "Australia": "61", "New Zealand": "64", "United Arab Emirates": "971",
+          "Singapore": "65", "South Africa": "27", "Germany": "49", "France": "33",
+          "Ireland": "353", "Kenya": "254", "Netherlands": "31", "Switzerland": "41",
+          "Malaysia": "60", "Hong Kong": "852"
+        };
+        
+        if (!cleanPhone.startsWith("+")) {
+          if (cleanPhone.startsWith("00")) {
+            cleanPhone = "+" + cleanPhone.slice(2);
+          } else {
+            const dial = countryDialCodes[userCountry];
+            if (dial) {
+              if (cleanPhone.startsWith("0")) {
+                cleanPhone = cleanPhone.slice(1);
+              }
+              if (cleanPhone.startsWith(dial)) {
+                cleanPhone = "+" + cleanPhone;
+              } else {
+                cleanPhone = `+${dial}${cleanPhone}`;
+              }
+            }
+          }
+          if (cleanPhone !== uData.phone) {
+            updates.phone = cleanPhone;
+            changed = true;
+          }
+        }
+      }
+      
+      if (changed) {
+        userBatch.update(userDoc.ref, updates);
+        migratedUsersCount++;
+      }
+    });
+    
+    if (migratedUsersCount > 0) {
+      await userBatch.commit();
+    }
+    
+    // 2. Migrate Satsangs address fields
+    const satsangBatch = db.batch();
+    let migratedSatsangsCount = 0;
+    
+    satsangsSnap.docs.forEach(sDoc => {
+      const sData = sDoc.data();
+      const updates = {};
+      let changed = false;
+      
+      if (sData.address && !sData.addressLine1) {
+        updates.addressLine1 = sData.address;
+        updates.addressLine2 = sData.addressLine2 || "";
+        updates.addressLine3 = sData.addressLine3 || "";
+        updates.state = sData.state || "";
+        updates.country = sData.country || "United Kingdom";
+        changed = true;
+      } else if (!sData.country) {
+        updates.country = "United Kingdom";
+        changed = true;
+      }
+      
+      if (changed) {
+        satsangBatch.update(sDoc.ref, updates);
+        migratedSatsangsCount++;
+      }
+    });
+    
+    if (migratedSatsangsCount > 0) {
+      await satsangBatch.commit();
+    }
+    
+    return res.status(200).send({
+      success: true,
+      migratedUsers: migratedUsersCount,
+      migratedSatsangs: migratedSatsangsCount,
+      message: "Database addresses and phone numbers successfully migrated! Jai Guruji 🙏"
+    });
+  } catch (err) {
+    console.error("Migration error:", err);
+    return res.status(500).send({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+

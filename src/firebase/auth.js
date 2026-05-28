@@ -11,10 +11,10 @@ import { auth, db } from "./config";
 import { createUserProfile, getUserProfile } from "./firestore";
 import { onSnapshot, doc } from "firebase/firestore";
 
-export async function registerUser({ email, password, name, phone, address, city, postcode, guests = [] }) {
+export async function registerUser({ email, password, name, ...profileData }) {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(cred.user, { displayName: name });
-  await createUserProfile(cred.user.uid, { name, email, phone, address, city, postcode, guests });
+  await createUserProfile(cred.user.uid, { name, email, ...profileData });
   return cred.user;
 }
 
