@@ -1031,6 +1031,8 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
   const [sevaMapping, setSevaMapping] = useState({});
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState("attendance");
+  const [showGuestsPanel, setShowGuestsPanel] = useState(false);
+  const [showSevaPanel, setShowSevaPanel] = useState(false);
   useEffect(() => {
     if (!satsangId) return;
     // Real-time subscription
@@ -1446,114 +1448,193 @@ function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
               <div>
                 <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, marginBottom: 18 }}>Register Attendance</h3>
                 <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px 28px" }}>
-                  <Label style={{ marginBottom: 10, display: "block" }}>Select Attending Guests</Label>
-                  {(!profile?.guests || profile.guests.length === 0) ? (
-                    <div style={{ background: "rgba(212,151,42,0.03)", border: `1px dashed rgba(212,151,42,0.25)`, borderRadius: 10, padding: "16px 20px", marginBottom: 20 }}>
-                      <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.6, margin: "0 0 10px", fontStyle: "italic" }}>
-                        🙏 Want to bring someone along? Satsang is always more beautiful when shared with loved ones. If you would like to bring family, children, or friends along, please register them in your Profile first and then select them here.
-                      </p>
-                      <button
-                        onClick={() => nav("profile")}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: C.gold,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          padding: 0,
-                          textDecoration: "underline"
-                        }}
-                      >
-                        👉 Manage Guests in Profile
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ marginBottom: 20 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-                        {profile.guests.map(g => {
-                          const isSelected = selectedGuests.includes(g.id);
-                          return (
-                            <label key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", color: isSelected ? C.cream : C.muted, fontSize: 14, transition: "color 0.2s" }}>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleGuestSelect(g.id)}
-                                style={{ accentColor: C.gold, cursor: "pointer" }}
-                              />
-                              <strong>{g.name}</strong> <span style={{ fontSize: 12, color: C.muted }}>({g.relationship})</span>
-                            </label>
-                          );
-                        })}
+                  
+                  {/* Collapsible Guests Panel */}
+                  <div style={{ marginBottom: 18 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowGuestsPanel(p => !p)}
+                      style={{
+                        background: showGuestsPanel ? "rgba(255,255,255,0.03)" : "none",
+                        border: `1px solid ${showGuestsPanel ? C.gold : C.border}`,
+                        borderRadius: 10,
+                        width: "100%",
+                        padding: "14px 18px",
+                        textAlign: "left",
+                        color: C.cream,
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        outline: "none"
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div>
+                          <span>Accompanying Guests & Family</span>
+                          {selectedGuests.length > 0 && (
+                            <span style={{ marginLeft: 8, color: C.gold, fontSize: 13, fontWeight: "bold" }}>
+                              ({selectedGuests.length} selected)
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: C.muted, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid rgba(255,255,255,0.03)`, paddingTop: 10 }}>
-                        <span>✨ You can always add or update your regular guests in your Profile page.</span>
-                        <button
-                          onClick={() => nav("profile")}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: C.gold,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            padding: 0,
-                            textDecoration: "underline"
-                          }}
-                        >
-                          Manage Guests
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {Object.keys(s.sevas || {}).length > 0 && (
-                    <div style={{ marginBottom: 24, marginTop: 10 }}>
-                      <Label style={{ marginBottom: 4, display: "block" }}>Request Seva Roles</Label>
-                      <p style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>You can assign specific Seva roles to yourself or any of your attending guests (excluding children).</p>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                        {Object.values(s.sevas || {}).map(sv => {
-                          const m = STANDARD_SEVAS.find(x => x.id === sv.id);
-                          const full = (sv.opted || 0) >= sv.needed;
-                          const selectedPersonId = sevaMapping[sv.id] || "";
+                      <span style={{ fontSize: 14, transform: showGuestsPanel ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s", color: C.muted }}>▼</span>
+                    </button>
 
-                          const options = [
-                            { id: user.uid, name: `${profile?.name || user.displayName} (Me)` }
-                          ];
-                          (profile?.guests || []).forEach(g => {
-                            if (selectedGuests.includes(g.id) && !g.isChild) {
-                              options.push({ id: g.id, name: `${g.name} (Guest)` });
-                            }
-                          });
-                          return (
-                            <div key={sv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.01)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", flexWrap: "wrap", gap: 10 }}>
-                              <div>
-                                <span style={{ color: C.cream, fontSize: 14, fontWeight: 600 }}>{m?.icon} {m?.name}</span>
-                                <span style={{ color: C.muted, fontSize: 12, marginLeft: 8 }}>({sv.opted || 0} of {sv.needed} filled)</span>
-                              </div>
-                              <select
-                                disabled={full && !selectedPersonId}
-                                value={selectedPersonId}
-                                onChange={(e) => handleSevaMapChange(sv.id, e.target.value)}
+                    {showGuestsPanel && (
+                      <div style={{ marginTop: 14, background: "rgba(0,0,0,0.15)", borderRadius: 10, padding: "16px 20px", border: `1px solid rgba(255,255,255,0.03)` }}>
+                        {(!profile?.guests || profile.guests.length === 0) ? (
+                          <div style={{ background: "rgba(212,151,42,0.03)", border: `1px dashed rgba(212,151,42,0.25)`, borderRadius: 10, padding: "16px 20px" }}>
+                            <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.6, margin: "0 0 10px", fontStyle: "italic" }}>
+                              🙏 Want to bring someone along? Satsang is always more beautiful when shared with loved ones. If you would like to bring family, children, or friends along, please register them in your Profile first and then select them here.
+                            </p>
+                            <button
+                              onClick={() => nav("profile")}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: C.gold,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                padding: 0,
+                                textDecoration: "underline"
+                              }}
+                            >
+                              👉 Manage Guests in Profile
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+                              {profile.guests.map(g => {
+                                const isSelected = selectedGuests.includes(g.id);
+                                return (
+                                  <label key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", color: isSelected ? C.cream : C.muted, fontSize: 14, transition: "color 0.2s" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => toggleGuestSelect(g.id)}
+                                      style={{ accentColor: C.gold, cursor: "pointer" }}
+                                    />
+                                    <strong>{g.name}</strong> <span style={{ fontSize: 12, color: C.muted }}>({g.relationship})</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                            <div style={{ fontSize: 12, color: C.muted, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid rgba(255,255,255,0.03)`, paddingTop: 10 }}>
+                              <span>✨ You can always add or update your regular guests in your Profile page.</span>
+                              <button
+                                onClick={() => nav("profile")}
                                 style={{
-                                  background: C.bg,
-                                  border: `1px solid ${C.border}`,
-                                  color: selectedPersonId ? C.gold : C.muted,
-                                  padding: "6px 10px",
-                                  borderRadius: 6,
-                                  fontSize: 13,
+                                  background: "none",
+                                  border: "none",
+                                  color: C.gold,
+                                  fontSize: 12,
+                                  fontWeight: 600,
                                   cursor: "pointer",
-                                  outline: "none"
+                                  padding: 0,
+                                  textDecoration: "underline"
                                 }}
                               >
-                                <option value="">-- No Seva --</option>
-                                {options.map(opt => (
-                                  <option key={opt.id} value={opt.id}>{opt.name}</option>
-                                ))}
-                              </select>
+                                Manage Guests
+                              </button>
                             </div>
-                          );
-                        })}
+                          </div>
+                        )}
                       </div>
+                    )}
+                  </div>
+
+                  {/* Collapsible Seva Panel */}
+                  {Object.keys(s.sevas || {}).length > 0 && (
+                    <div style={{ marginBottom: 22 }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowSevaPanel(p => !p)}
+                        style={{
+                          background: showSevaPanel ? "rgba(255,255,255,0.03)" : "none",
+                          border: `1px solid ${showSevaPanel ? C.gold : C.border}`,
+                          borderRadius: 10,
+                          width: "100%",
+                          padding: "14px 18px",
+                          textAlign: "left",
+                          color: C.cream,
+                          cursor: "pointer",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: 15,
+                          fontWeight: 700,
+                          outline: "none"
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div>
+                            <span>Offer Seva (Service)</span>
+                            {Object.values(sevaMapping).filter(Boolean).length > 0 && (
+                              <span style={{ marginLeft: 8, color: C.gold, fontSize: 13, fontWeight: "bold" }}>
+                                ({Object.values(sevaMapping).filter(Boolean).length} roles selected)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 14, transform: showSevaPanel ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s", color: C.muted }}>▼</span>
+                      </button>
+
+                      {showSevaPanel && (
+                        <div style={{ marginTop: 14, background: "rgba(0,0,0,0.15)", borderRadius: 10, padding: "16px 20px", border: `1px solid rgba(255,255,255,0.03)` }}>
+                          <Label style={{ marginBottom: 4, display: "block" }}>Request Seva Roles</Label>
+                          <p style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>You can assign specific Seva roles to yourself or any of your attending guests (excluding children).</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            {Object.values(s.sevas || {}).map(sv => {
+                              const m = STANDARD_SEVAS.find(x => x.id === sv.id);
+                              const full = (sv.opted || 0) >= sv.needed;
+                              const selectedPersonId = sevaMapping[sv.id] || "";
+
+                              const options = [
+                                { id: user.uid, name: `${profile?.name || user.displayName} (Me)` }
+                              ];
+                              (profile?.guests || []).forEach(g => {
+                                if (selectedGuests.includes(g.id) && !g.isChild) {
+                                  options.push({ id: g.id, name: `${g.name} (Guest)` });
+                                }
+                              });
+                              return (
+                                <div key={sv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.01)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", flexWrap: "wrap", gap: 10 }}>
+                                  <div>
+                                    <span style={{ color: C.cream, fontSize: 14, fontWeight: 600 }}>{m?.name}</span>
+                                    <span style={{ color: C.muted, fontSize: 12, marginLeft: 8 }}>({sv.opted || 0} of {sv.needed} filled)</span>
+                                  </div>
+                                  <select
+                                    disabled={full && !selectedPersonId}
+                                    value={selectedPersonId}
+                                    onChange={(e) => handleSevaMapChange(sv.id, e.target.value)}
+                                    style={{
+                                      background: C.bg,
+                                      border: `1px solid ${C.border}`,
+                                      color: selectedPersonId ? C.gold : C.muted,
+                                      padding: "6px 10px",
+                                      borderRadius: 6,
+                                      fontSize: 13,
+                                      cursor: "pointer",
+                                      outline: "none"
+                                    }}
+                                  >
+                                    <option value="">-- No Seva --</option>
+                                    {options.map(opt => (
+                                      <option key={opt.id} value={opt.id}>{opt.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   {left <= 0 && <div style={{ color: C.saffron, fontSize: 13, marginBottom: 16, display: "flex", alignItems: "center", gap: 6 }}>⚠️ Note: This Satsang is currently over capacity. Registering will place you on the Waitlist.</div>}
