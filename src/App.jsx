@@ -135,7 +135,7 @@ function AppInner() {
           }}
           onError={e => { e.target.style.display = "none"; }}
         />
-        <p style={{ color: C.gold, fontFamily: "Georgia,serif", letterSpacing: "0.15em", fontSize: 13 }}>OM NAMAH SHIVAY…</p>
+        <p style={{ color: C.gold, fontFamily: "var(--font-headings)", letterSpacing: "0.15em", fontSize: 13 }}>OM NAMAH SHIVAY…</p>
       </div>
     );
   }
@@ -145,7 +145,7 @@ function AppInner() {
       minHeight: "100vh",
       background: `linear-gradient(160deg,#1a0800 0%,#0f0500 100%)`,
       color: C.cream,
-      fontFamily: "Georgia,'Times New Roman',serif"
+      fontFamily: "var(--font-body)"
     }}>
       <style>{`
         .nav-links-desktop {
@@ -324,7 +324,7 @@ function AppInner() {
                   cursor: "pointer",
                   textAlign: "left",
                   transition: "all 0.2s ease",
-                  fontFamily: "Georgia, serif"
+                  fontFamily: "var(--font-headings)"
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.background = "rgba(212, 151, 42, 0.12)";
@@ -363,7 +363,7 @@ function AppInner() {
                     cursor: "pointer",
                     textAlign: "left",
                     transition: "all 0.2s ease",
-                    fontFamily: "Georgia, serif"
+                    fontFamily: "var(--font-headings)"
                   }}
                   onMouseEnter={(e) => {
                     if (!item.accent) {

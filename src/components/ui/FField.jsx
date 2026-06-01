@@ -19,7 +19,7 @@ export default function FField({ label, type = "text", v, on, ph, ...rest }) {
           padding: "11px 14px",
           color: C.cream,
           fontSize: 15,
-          fontFamily: "Georgia,serif",
+          fontFamily: "var(--font-body)",
           outline: "none",
           boxSizing: "border-box"
         }}

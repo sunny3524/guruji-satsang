@@ -93,7 +93,7 @@ export default function HomeView({ nav, upcoming, user, heroImg, gurujiImgs }) {
             fontSize: 120,
             opacity: 0.03,
             color: C.gold,
-            fontFamily: "Georgia, serif",
+            fontFamily: "var(--font-headings)",
             userSelect: "none"
           }}>“</div>
           <div style={{

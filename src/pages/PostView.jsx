@@ -211,7 +211,7 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
             padding: "11px 14px",
             color: C.cream,
             fontSize: 15,
-            fontFamily: "Georgia,serif",
+            fontFamily: "var(--font-body)",
             outline: "none",
             boxSizing: "border-box",
             height: 45
@@ -269,9 +269,9 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
           <span style={{ fontSize: 18, transform: showSevaPanel ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s" }}>▼</span>
         </button>
 
-        {showSevaPanel && (
-          <>
-            <p style={{ fontSize: 13, color: C.muted, marginBottom: 14, marginTop: 18 }}>You may choose Sevas if you want, or leave this blank and host the Satsang without assigned roles.</p>
+        <div className={`panel-collapse ${showSevaPanel ? "open" : ""}`}>
+          <div className="panel-collapse-inner" style={{ paddingTop: 18 }}>
+            <p style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>You may choose Sevas if you want, or leave this blank and host the Satsang without assigned roles.</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10 }}>
               {STANDARD_SEVAS.map(sv => {
                 const ch = chosenSv.find(x => x.id === sv.id);
@@ -293,8 +293,8 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
                 );
               })}
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
 
       <div style={{ marginTop: 32 }}>

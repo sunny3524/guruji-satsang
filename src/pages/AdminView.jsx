@@ -66,7 +66,7 @@ export default function AdminView({ user, profile, nav, notify }) {
               fontSize: 14,
               color: tab === k ? C.gold : C.muted,
               borderBottom: tab === k ? `2px solid ${C.gold}` : "2px solid transparent",
-              fontFamily: "Georgia,serif"
+              fontFamily: "var(--font-headings)"
             }}
           >
             {l}
@@ -102,7 +102,7 @@ export default function AdminView({ user, profile, nav, notify }) {
                         cursor: "pointer",
                         fontSize: 14,
                         textAlign: "left",
-                        fontFamily: "Georgia,serif",
+                        fontFamily: "var(--font-headings)",
                         transition: "color 0.2s ease"
                       }}
                       onMouseOver={e => e.currentTarget.style.color = C.gold}
@@ -175,7 +175,7 @@ export default function AdminView({ user, profile, nav, notify }) {
           <div style={{ marginBottom: 18 }}>
             <Label>Message Body *</Label>
             <textarea value={broadcast.body} onChange={e => setBroadcast(p => ({ ...p, body: e.target.value }))} placeholder="Write your message here…"
-              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px", color: C.cream, fontSize: 15, fontFamily: "Georgia,serif", outline: "none", boxSizing: "border-box", minHeight: 160, resize: "vertical" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px 14px", color: C.cream, fontSize: 15, fontFamily: "var(--font-body)", outline: "none", boxSizing: "border-box", minHeight: 160, resize: "vertical" }} />
           </div>
           <Btn onClick={doBroadcast} disabled={busy} full>{busy ? "Sending…" : "Send Broadcast →"}</Btn>
         </div>

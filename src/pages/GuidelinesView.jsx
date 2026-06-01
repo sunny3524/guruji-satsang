@@ -62,12 +62,11 @@ export default function GuidelinesView() {
                 textAlign: "left"
               }}
             >
-              <span style={{ fontSize: 22, flexShrink: 0 }}>{g.icon}</span>
               <span style={{ flex: 1, fontSize: 17, fontWeight: 700 }}>{g.title}</span>
-              <span style={{ color: C.gold, fontSize: 12 }}>{open === i ? "▲" : "▼"}</span>
+              <span style={{ color: C.gold, fontSize: 12, transform: open === i ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease", display: "inline-block" }}>▼</span>
             </button>
-            {open === i && (
-              <div style={{ padding: "4px 20px 22px 20px", borderTop: `1px solid ${C.border}` }}>
+            <div className={`panel-collapse ${open === i ? "open" : ""}`}>
+              <div className="panel-collapse-inner" style={{ padding: "4px 20px 22px 20px", borderTop: `1px solid ${C.border}` }}>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {g.items.map((item, j) => (
                     <li
@@ -88,7 +87,7 @@ export default function GuidelinesView() {
                   ))}
                 </ul>
               </div>
-            )}
+            </div>
           </div>
         ))}
       </div>

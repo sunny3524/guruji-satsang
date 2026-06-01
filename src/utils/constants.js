@@ -3,8 +3,8 @@
 
 export const C = {
   bg: "#1a0800", card: "#270e03", border: "#5c2a0a",
-  gold: "#d4972a", saffron: "#e06b10", cream: "#f5e8d0",
-  muted: "#9c7050", red: "#7a1a0a",
+  gold: "#d4972a", saffron: "#e06b10", cream: "#fdfbf7",
+  muted: "#9c7050", red: "#722f37",
 };
 
 export const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -15,14 +15,19 @@ export const COUNTRY_DIAL_CODES = {
   "Australia": "61", "New Zealand": "64", "United Arab Emirates": "971",
   "Singapore": "65", "South Africa": "27", "Germany": "49", "France": "33",
   "Ireland": "353", "Kenya": "254", "Netherlands": "31", "Switzerland": "41",
-  "Malaysia": "60", "Hong Kong": "852"
+  "Malaysia": "60", "Hong Kong": "852", "Bahrain": "973", "Denmark": "45",
+  "Ghana": "233", "Hungary": "36", "Indonesia": "62", "Kuwait": "965",
+  "Luxembourg": "352", "Oman": "968", "Pakistan": "92", "Qatar": "974",
+  "Saudi Arabia": "966", "Spain": "34", "Sweden": "46", "Thailand": "66"
 };
 
 export const SANGAT_COUNTRIES = [
   "United Kingdom", "India", "United States", "Canada", "Australia", 
   "New Zealand", "United Arab Emirates", "Singapore", "South Africa", 
   "Germany", "France", "Ireland", "Kenya", "Netherlands", "Switzerland", 
-  "Malaysia", "Hong Kong", "Other"
+  "Malaysia", "Hong Kong", "Bahrain", "Denmark", "Ghana", "Hungary",
+  "Indonesia", "Kuwait", "Luxembourg", "Oman", "Pakistan", "Qatar",
+  "Saudi Arabia", "Spain", "Sweden", "Thailand", "Other"
 ];
 
 export const COUNTRY_PHONE_EXAMPLES = {
@@ -42,7 +47,21 @@ export const COUNTRY_PHONE_EXAMPLES = {
   "Netherlands": "31612345678",
   "Switzerland": "41781234567",
   "Malaysia": "60123456789",
-  "Hong Kong": "85291234567"
+  "Hong Kong": "85291234567",
+  "Bahrain": "97339123456",
+  "Denmark": "4520123456",
+  "Ghana": "233241234567",
+  "Hungary": "36201234567",
+  "Indonesia": "628123456789",
+  "Kuwait": "96551234567",
+  "Luxembourg": "352621123456",
+  "Oman": "96891234567",
+  "Pakistan": "923001234567",
+  "Qatar": "97433123456",
+  "Saudi Arabia": "966501234567",
+  "Spain": "34612345678",
+  "Sweden": "46701234567",
+  "Thailand": "66812345678"
 };
 
 export const STANDARD_SEVAS = [
