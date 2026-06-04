@@ -169,8 +169,22 @@ function satsangEmailBlock(s) {
 // ── 1. Welcome email on new user registration ─────────────────────────────────
 exports.onUserCreated = region.firestore
   .document("users/{uid}")
-  .onCreate(async (snap) => {
+  .onCreate(async (snap, context) => {
     const user = snap.data();
+    const uid = context.params.uid || snap.id;
+
+    // Automatically sync phone number to Firebase Auth user so they can log in via SMS OTP under the same UID
+    if (user.phone) {
+      try {
+        await admin.auth().updateUser(uid, {
+          phoneNumber: user.phone
+        });
+        console.log(`[Auth Sync] Successfully synced phone number ${user.phone} to Firebase Auth user ${uid}`);
+      } catch (err) {
+        console.warn(`[Auth Sync] Could not sync phone number to Auth for ${uid}:`, err.message || err);
+      }
+    }
+
     await sendMail(
       user.email,
       "🙏 Welcome to Guruji Satsang — Jai Guruji!",
@@ -1147,8 +1161,20 @@ exports.onUserUpdated = region.firestore
     const after = change.after.data();
     const uid = context.params.uid;
     
-    // Check if phone or address details changed
+    // Automatically sync updated phone number to Firebase Auth user so they can log in via SMS OTP under the same UID
     const phoneChanged = before.phone !== after.phone;
+    if (phoneChanged && after.phone) {
+      try {
+        await admin.auth().updateUser(uid, {
+          phoneNumber: after.phone
+        });
+        console.log(`[Auth Sync] Successfully updated phone number ${after.phone} on Firebase Auth user ${uid}`);
+      } catch (err) {
+        console.warn(`[Auth Sync] Could not sync updated phone number to Auth for ${uid}:`, err.message || err);
+      }
+    }
+    
+    // Check if phone or address details changed
     const addressLine1Changed = before.addressLine1 !== after.addressLine1;
     const cityChanged = before.city !== after.city;
     const postcodeChanged = before.postcode !== after.postcode;
@@ -1314,5 +1340,687 @@ exports.migrateAddressesAndPhones = region.https.onRequest(async (req, res) => {
     });
   }
 });
+
+// ── Secure HTTP POST Helper ──────────────────────────────────────────────────
+function postRequest(urlStr, headers, body) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const bodyData = JSON.stringify(body);
+    
+    const options = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === "https:" ? 443 : 80),
+      path: url.pathname + url.search,
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(bodyData)
+      }
+    };
+    
+    const httpOrHttps = url.protocol === "https:" ? require("https") : require("http");
+    const req = httpOrHttps.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => { data += chunk; });
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(`Server responded with status ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+    
+    req.on("error", (err) => { reject(err); });
+    req.write(bodyData);
+    req.end();
+  });
+}
+
+// ── Check Phone Availability (Uniqueness check) ─────────────────────────────────
+exports.checkPhoneAvailability = region.https.onCall(async (data) => {
+  const { phone } = data || {};
+  if (!phone) {
+    throw new functions.https.HttpsError("invalid-argument", "Phone number is required");
+  }
+
+  // Normalize number (E.164-like but keeping '+' if present)
+  const normalized = phone.trim().replace(/[^\d+]/g, "");
+
+  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  return { available: usersSnap.empty };
+});
+
+// ── Request WhatsApp OTP (Secure & Anti-Enumeration) ───────────────────────────
+exports.requestWhatsAppOTP = region.https.onCall(async (data) => {
+  const { phone } = data || {};
+  if (!phone) {
+    throw new functions.https.HttpsError("invalid-argument", "Phone number is required");
+  }
+
+  // Normalize number (ensure digits only after '+' prefix)
+  const normalized = phone.trim().replace(/[^\d+]/g, "");
+
+  // Rate Limiting Check (Simple Firestore-based limit, e.g., max 1 code per 2 minutes)
+  const otpRef = db.collection("otps").doc(normalized);
+  const otpSnap = await otpRef.get();
+  if (otpSnap.exists) {
+    const otpData = otpSnap.data();
+    const ageMs = Date.now() - otpData.createdAt.toDate().getTime();
+    if (ageMs < 120 * 1000) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        "An OTP was recently requested for this number. Please wait 2 minutes before requesting another."
+      );
+    }
+  }
+
+  // Check if phone number is registered
+  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  
+  // ── Anti-Enumeration Guard ──
+  // If the number is NOT registered, IMMEDIATELY return generic success response
+  // without calling the WhatsApp daemon.
+  if (usersSnap.empty) {
+    console.log(`[Anti-Enumeration] OTP requested for unregistered phone number: ${normalized}`);
+    return {
+      success: true,
+      message: "If this phone number is registered with a profile, you will receive a WhatsApp verification code shortly."
+    };
+  }
+
+  const userDoc = usersSnap.docs[0];
+  const uid = userDoc.id;
+
+  // Generate 6-digit random code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Save secure OTP to Firestore
+  await otpRef.set({
+    code: code,
+    uid: uid,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 60 * 1000)), // 5 minutes validity
+    attempts: 0
+  });
+
+  // Rotate between 10 spiritually respectful templates to evade spam detection
+  const templates = [
+    `Jai Guruji 🙏 Your Guruji Sangat App verification code is: ${code}. Valid for 5 minutes.`,
+    `Jai Guruji 🙏 Use code ${code} to log securely into the Guruji Sangat App. It expires in 5 minutes.`,
+    `Aum Namah Shivay 🙏 Please enter ${code} to verify your number on the Guruji Satsang App. This code is valid for 5 minutes.`,
+    `Jai Guruji 🙏 Your secure access code is ${code}. Enter this on the Guruji Satsang app within 5 minutes.`,
+    `Shukrana Guruji 🙏 Use verification code ${code} to complete your login. Valid for 5 minutes.`,
+    `Jai Guruji 🙏 Verification code: ${code}. Please enter this code in the Guruji Sangat App to verify your identity. Valid for 5 minutes.`,
+    `Guruji Sangat verification: ${code}. Enter this code on the login page to continue. Expires in 5 minutes. Jai Guruji 🙏`,
+    `Aum Namah Shivay 🙏 Verification OTP: ${code} is your code for Guruji Satsang App login. Do not share.`,
+    `Jai Guruji Maharaj 🙏 Code ${code} is your secure login verification code. Valid for 5 minutes.`,
+    `Shukrana Guruji 🙏 Secure code: ${code}. Use it on the Guruji Sangat App. Valid for 5 minutes.`
+  ];
+  const randomMsg = templates[Math.floor(Math.random() * templates.length)];
+
+  // Fetch daemon configurations
+  const waUrl = functions.config().whatsapp?.url || process.env.WHATSAPP_API_URL;
+  const waSecret = functions.config().whatsapp?.secret || process.env.WHATSAPP_API_SECRET;
+
+  if (!waUrl || !waSecret) {
+    console.error("Missing WhatsApp daemon URL or Secret config in Firebase environment.");
+    throw new functions.https.HttpsError("failed-precondition", "WhatsApp gateway configurations are currently offline.");
+  }
+  try {
+    // Send to local/VPS daemon (bypassing ngrok warning screens if testing locally)
+    await postRequest(
+      `${waUrl}/send-otp`,
+      { 
+        "Authorization": `Bearer ${waSecret}`,
+        "ngrok-skip-browser-warning": "true",
+        "User-Agent": "FirebaseCloudFunction"
+      },
+      { phone: normalized, message: randomMsg }
+    );
+    
+    console.log(`[WhatsApp OTP] Successfully triggered OTP delivery to ${normalized}`);
+    return {
+      success: true,
+      message: "If this phone number is registered with a profile, you will receive a WhatsApp verification code shortly."
+    };
+  } catch (err) {
+    console.error(`[WhatsApp OTP] Daemon connection failed for ${normalized}:`, err);
+    throw new functions.https.HttpsError("unavailable", "Failed to deliver WhatsApp message. Please try again later.");
+  }
+});
+
+// ── Verify WhatsApp OTP ──────────────────────────────────────────────────────────
+exports.verifyWhatsAppOTP = region.https.onCall(async (data) => {
+  const { phone, code } = data || {};
+  if (!phone || !code) {
+    throw new functions.https.HttpsError("invalid-argument", "Phone number and verification code are required");
+  }
+
+  const normalized = phone.trim().replace(/[^\d+]/g, "");
+  const otpRef = db.collection("otps").doc(normalized);
+  const otpSnap = await otpRef.get();
+
+  if (!otpSnap.exists) {
+    throw new functions.https.HttpsError("not-found", "Invalid or expired verification code.");
+  }
+
+  const otpData = otpSnap.data();
+
+  // 1. Expiration check
+  if (otpData.expiresAt.toDate().getTime() < Date.now()) {
+    await otpRef.delete().catch(() => {});
+    throw new functions.https.HttpsError("deadline-exceeded", "The verification code has expired. Please request a new one.");
+  }
+
+  // 2. Max attempts check
+  if (otpData.attempts >= 3) {
+    await otpRef.delete().catch(() => {});
+    throw new functions.https.HttpsError("resource-exhausted", "Too many failed attempts. Please request a new OTP.");
+  }
+
+  // 3. Compare code
+  if (otpData.code !== code.trim()) {
+    await otpRef.update({
+      attempts: admin.firestore.FieldValue.increment(1)
+    });
+    throw new functions.https.HttpsError("invalid-argument", "Incorrect verification code. Please try again.");
+  }
+
+  // Success! Create custom auth token for their uid
+  try {
+    const customToken = await admin.auth().createCustomToken(otpData.uid);
+    
+    // Clean up temporary OTP doc
+    await otpRef.delete().catch(() => {});
+    
+    console.log(`[WhatsApp OTP] Successfully verified and issued Custom Token for user: ${otpData.uid}`);
+    return {
+      success: true,
+      token: customToken
+    };
+  } catch (err) {
+    console.error("Custom token creation failed:", err);
+    throw new functions.https.HttpsError("internal", "Authentication system error. Please contact administrator.");
+  }
+});
+
+// ── Register User With Phone and 6-Digit PIN ───────────────────────────
+exports.registerUserWithPhoneAndPIN = region.https.onCall(async (data) => {
+  const {
+    name, email, phone, pin,
+    addressLine1, addressLine2, addressLine3,
+    state, city, postcode, country,
+    latitude, longitude, guests
+  } = data || {};
+
+  if (!name || !email || !phone || !pin || !addressLine1 || !city || !postcode || !country) {
+    throw new functions.https.HttpsError("invalid-argument", "All mandatory profile fields and 6-digit PIN are required.");
+  }
+
+  if (pin.length !== 6 || isNaN(pin)) {
+    throw new functions.https.HttpsError("invalid-argument", "PIN must be a 6-digit numerical code.");
+  }
+
+  const normalizedPhone = phone.trim().replace(/[^\d+]/g, "");
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // 1. Verify phone uniqueness
+  const phoneSnap = await db.collection("users").where("phone", "==", normalizedPhone).limit(1).get();
+  if (!phoneSnap.empty) {
+    throw new functions.https.HttpsError("already-exists", "This phone number is already registered with another Sangat profile! Please log in or check the number.");
+  }
+
+  // 2. Verify email uniqueness in Firestore
+  const emailSnap = await db.collection("users").where("email", "==", normalizedEmail).limit(1).get();
+  if (!emailSnap.empty) {
+    throw new functions.https.HttpsError("already-exists", "This email address is already registered with another Sangat profile! Please log in or check the email.");
+  }
+
+  // 3. Create Firebase Auth user with a random secure password
+  const crypto = require("crypto");
+  const randomPassword = crypto.randomBytes(24).toString("hex");
+  
+  let userRecord;
+  try {
+    userRecord = await admin.auth().createUser({
+      email: normalizedEmail,
+      password: randomPassword,
+      displayName: name.trim()
+    });
+  } catch (err) {
+    console.error("Auth user creation failed:", err);
+    throw new functions.https.HttpsError("internal", `Failed to register user account: ${err.message}`);
+  }
+
+  // 4. Hash PIN with SHA-256
+  const pinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
+
+  // 5. Save user profile to Firestore /users/{uid}
+  try {
+    await db.collection("users").doc(userRecord.uid).set({
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      addressLine1: addressLine1.trim(),
+      addressLine2: addressLine2 ? addressLine2.trim() : "",
+      addressLine3: addressLine3 ? addressLine3.trim() : "",
+      state: state ? state.trim() : "",
+      city: city.trim(),
+      postcode: postcode.trim(),
+      country: country.trim(),
+      latitude: latitude || null,
+      longitude: longitude || null,
+      guests: guests || [],
+      pinHash,
+      role: "member",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.error("Firestore profile creation failed for uid:", userRecord.uid, err);
+    // Cleanup created auth user to avoid orphaned accounts
+    await admin.auth().deleteUser(userRecord.uid).catch(() => {});
+    throw new functions.https.HttpsError("internal", `Profile database creation failed: ${err.message}`);
+  }
+
+  // 6. Generate custom auth token for immediate login
+  try {
+    const customToken = await admin.auth().createCustomToken(userRecord.uid);
+    return {
+      success: true,
+      token: customToken
+    };
+  } catch (err) {
+    console.error("Custom token creation failed during registration:", err);
+    throw new functions.https.HttpsError("internal", "Auth token generation failed.");
+  }
+});
+
+// ── Login User With Phone and 6-Digit PIN ────────────────────────────────
+exports.loginWithPhoneAndPIN = region.https.onCall(async (data) => {
+  const { phone, pin } = data || {};
+  if (!phone || !pin) {
+    throw new functions.https.HttpsError("invalid-argument", "Both phone number and PIN are required.");
+  }
+
+  const normalizedPhone = phone.trim().replace(/[^\d+]/g, "");
+  const crypto = require("crypto");
+  const inputPinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
+
+  // Query users where phone matches
+  const usersSnap = await db.collection("users").where("phone", "==", normalizedPhone).limit(1).get();
+
+  // Anti-Enumeration generic error
+  const genericError = "Invalid phone number or PIN. If you have not set up your PIN yet, please log in using the WhatsApp OTP option to set your PIN on the Profile page.";
+
+  if (usersSnap.empty) {
+    console.log(`[Anti-Enumeration Login] Phone not found: ${normalizedPhone}`);
+    throw new functions.https.HttpsError("unauthenticated", genericError);
+  }
+
+  const userDoc = usersSnap.docs[0];
+  const userData = userDoc.data();
+
+  if (!userData.pinHash) {
+    console.log(`[Anti-Enumeration Login] User ${userDoc.id} has no PIN set.`);
+    throw new functions.https.HttpsError("unauthenticated", genericError);
+  }
+
+  if (userData.pinHash !== inputPinHash) {
+    console.log(`[Anti-Enumeration Login] PIN mismatch for user ${userDoc.id}.`);
+    throw new functions.https.HttpsError("unauthenticated", genericError);
+  }
+
+  // PIN Matches! Generate custom auth token
+  try {
+    const customToken = await admin.auth().createCustomToken(userDoc.id);
+    return {
+      success: true,
+      token: customToken
+    };
+  } catch (err) {
+    console.error("Custom token creation failed during PIN login:", err);
+    throw new functions.https.HttpsError("internal", "Authentication system error. Please contact administrator.");
+  }
+});
+
+// ── Update User PIN ──────────────────────────────────────────────────────
+exports.updateUserPIN = region.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentication required to update PIN.");
+  }
+
+  const { pin } = data || {};
+  if (!pin || pin.length !== 6 || isNaN(pin)) {
+    throw new functions.https.HttpsError("invalid-argument", "A valid 6-digit numerical PIN is required.");
+  }
+
+  const crypto = require("crypto");
+  const pinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
+
+  try {
+    await db.collection("users").doc(context.auth.uid).update({
+      pinHash,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return { success: true };
+  } catch (err) {
+    console.error("PIN update failed for uid:", context.auth.uid, err);
+    throw new functions.https.HttpsError("internal", `Failed to update PIN: ${err.message}`);
+  }
+});
+
+// ── Migrate User Profile to Phone UID (Secure Backend Migration) ───────────
+exports.migrateUserProfileToPhoneUID = region.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentication required to migrate profile.");
+  }
+
+  const { phone } = data || {};
+  if (!phone) {
+    throw new functions.https.HttpsError("invalid-argument", "Phone number is required for migration lookup.");
+  }
+
+  const newUid = context.auth.uid;
+  const normalizedPhone = phone.trim().replace(/[^\d+]/g, "");
+
+  try {
+    // 1. Query users collection by phone for any document where doc.id != newUid
+    const usersSnap = await db.collection("users")
+      .where("phone", "==", normalizedPhone)
+      .limit(1)
+      .get();
+
+    if (usersSnap.empty) {
+      return { success: true, migrated: false, message: "No legacy profile found for this phone number." };
+    }
+
+    const oldUserDoc = usersSnap.docs[0];
+    const oldUid = oldUserDoc.id;
+
+    if (oldUid === newUid) {
+      return { success: true, migrated: false, message: "Profile already associated with current UID." };
+    }
+
+    const oldUserData = oldUserDoc.data();
+    console.log(`[Migration Service] Migrating user data from oldUid: ${oldUid} to newUid: ${newUid}`);
+
+    // Step A: Copy user profile to newUid
+    await db.collection("users").doc(newUid).set({
+      ...oldUserData,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Step B: Delete old user profile
+    await db.collection("users").doc(oldUid).delete();
+
+    // Step C: Update organizerUid in Satsangs organized by oldUid
+    const satsangsSnap = await db.collection("satsangs").where("organizerUid", "==", oldUid).get();
+    const batch = db.batch();
+    satsangsSnap.docs.forEach(docSnap => {
+      batch.update(docSnap.ref, {
+        organizerUid: newUid,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    // Step D: Update attendance (attendees subcollection)
+    const attendeesSnap = await db.collectionGroup("attendees").where("userUid", "==", oldUid).get();
+    attendeesSnap.docs.forEach(aDoc => {
+      const data = aDoc.data();
+      const parentSatsangDoc = aDoc.ref.parent.parent;
+      if (parentSatsangDoc) {
+        const newAttendeeRef = parentSatsangDoc.collection("attendees").doc(newUid);
+        batch.set(newAttendeeRef, {
+          ...data,
+          userUid: newUid
+        });
+        batch.delete(aDoc.ref);
+      }
+    });
+
+    // Step E: Update enrolled sevas on all satsangs
+    const allSatsangsSnap = await db.collection("satsangs").get();
+    allSatsangsSnap.docs.forEach(sDoc => {
+      const satsangData = sDoc.data();
+      if (satsangData.sevas) {
+        let updated = false;
+        const sevas = { ...satsangData.sevas };
+        for (const sevaId in sevas) {
+          const seva = sevas[sevaId];
+          if (seva.enrolled && Array.isArray(seva.enrolled)) {
+            const filtered = seva.enrolled.map(item => {
+              if (item.uid === oldUid) {
+                updated = true;
+                return { ...item, uid: newUid };
+              }
+              return item;
+            });
+            if (updated) {
+              sevas[sevaId].enrolled = filtered;
+            }
+          }
+        }
+        if (updated) {
+          batch.update(sDoc.ref, {
+            sevas,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      }
+    });
+
+    await batch.commit();
+    console.log(`[Migration Service] Successfully migrated and committed database updates.`);
+    return { success: true, migrated: true, oldUid };
+
+  } catch (err) {
+    console.error("[Migration Service] Profile migration failed:", err);
+    throw new functions.https.HttpsError("internal", `Profile migration failed: ${err.message}`);
+  }
+});
+
+// ── Request WhatsApp OTP for Registration ─────────────────────────
+exports.requestWhatsAppOTPForRegistration = region.https.onCall(async (data) => {
+  const { phone } = data || {};
+  if (!phone) {
+    throw new functions.https.HttpsError("invalid-argument", "Phone number is required");
+  }
+
+  const normalized = phone.trim().replace(/[^\d+]/g, "");
+
+  // Check if phone number is already registered in Firestore
+  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  if (!usersSnap.empty) {
+    throw new functions.https.HttpsError("already-exists", "This phone number is already registered with another profile.");
+  }
+
+  // Rate Limiting Check
+  const otpRef = db.collection("otps").doc(normalized);
+  const otpSnap = await otpRef.get();
+  if (otpSnap.exists) {
+    const otpData = otpSnap.data();
+    const ageMs = Date.now() - otpData.createdAt.toDate().getTime();
+    if (ageMs < 120 * 1000) {
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        "An OTP was recently requested for this number. Please wait 2 minutes."
+      );
+    }
+  }
+
+  // Generate 6-digit random code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Save secure OTP to Firestore
+  await otpRef.set({
+    code: code,
+    isRegistration: true,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 60 * 1000)),
+    attempts: 0
+  });
+
+  const templates = [
+    `Jai Guruji 🙏 Your Guruji Sangat App registration code is: ${code}. Valid for 5 minutes.`,
+    `Jai Guruji 🙏 Use code ${code} to verify your phone number and register on the Guruji Sangat App.`,
+    `Aum Namah Shivay 🙏 Verification code: ${code}. Please enter this code to complete your registration.`,
+    `Jai Guruji 🙏 Register on the Guruji Satsang App using code: ${code}. Expires in 5 minutes.`,
+    `Shukrana Guruji 🙏 Registration verification code: ${code}. Welcome to the Sangat.`,
+    `Jai Guruji Maharaj 🙏 To complete your Sangat profile, verify with code: ${code}. Valid for 5 mins.`,
+    `Aum Namah Shivay 🙏 Registration OTP: ${code}. Enter this to activate your profile on Guruji Satsang.`,
+    `Jai Guruji 🙏 Your phone registration code is: ${code}. Valid for 5 minutes.`,
+    `Shukrana Guruji 🙏 Enter code ${code} to complete your register flow on the Sangat portal.`,
+    `Jai Guruji 🙏 Account registration code: ${code}. Do not share this OTP. Expires in 5 minutes.`
+  ];
+  const randomMsg = templates[Math.floor(Math.random() * templates.length)];
+
+  // Fetch daemon configurations
+  const waUrl = functions.config().whatsapp?.url || process.env.WHATSAPP_API_URL;
+  const waSecret = functions.config().whatsapp?.secret || process.env.WHATSAPP_API_SECRET;
+
+  if (!waUrl || !waSecret) {
+    console.warn(`[WhatsApp API] Missing credentials. Logged code is: ${code}`);
+    return { success: true, message: "Code generated (credentials missing)." };
+  }
+
+  try {
+    // Send to local/VPS daemon
+    await postRequest(
+      `${waUrl}/send-otp`,
+      { 
+        "Authorization": `Bearer ${waSecret}`,
+        "ngrok-skip-browser-warning": "true",
+        "User-Agent": "FirebaseCloudFunction"
+      },
+      { phone: normalized, message: randomMsg }
+    );
+    return { success: true, message: "Verification code sent to your WhatsApp!" };
+  } catch (err) {
+    console.error("WhatsApp message delivery failed:", err);
+    throw new functions.https.HttpsError("internal", `Failed to send WhatsApp message: ${err.message}`);
+  }
+});
+
+// ── Register User With WhatsApp OTP ───────────────────────────────────────
+exports.registerUserWithWhatsAppOTP = region.https.onCall(async (data, context) => {
+  const { phone, code, profile } = data || {};
+  if (!phone || !code || !profile) {
+    throw new functions.https.HttpsError("invalid-argument", "Phone number, verification code, and profile details are required.");
+  }
+
+  const normalized = phone.trim().replace(/[^\d+]/g, "");
+  const otpRef = db.collection("otps").doc(normalized);
+  const otpSnap = await otpRef.get();
+
+  if (!otpSnap.exists) {
+    throw new functions.https.HttpsError("not-found", "Invalid or expired verification code.");
+  }
+
+  const otpData = otpSnap.data();
+
+  // Expiration check
+  if (otpData.expiresAt.toDate().getTime() < Date.now()) {
+    await otpRef.delete().catch(() => {});
+    throw new functions.https.HttpsError("deadline-exceeded", "The verification code has expired. Please request a new one.");
+  }
+
+  // Max attempts check
+  if (otpData.attempts >= 3) {
+    await otpRef.delete().catch(() => {});
+    throw new functions.https.HttpsError("resource-exhausted", "Too many failed attempts. Please request a new OTP.");
+  }
+
+  // Compare code
+  if (otpData.code !== code.trim()) {
+    await otpRef.update({
+      attempts: admin.firestore.FieldValue.increment(1)
+    });
+    throw new functions.https.HttpsError("invalid-argument", "Incorrect verification code. Please try again.");
+  }
+
+  // Verify phone is not registered (double check)
+  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  if (!usersSnap.empty) {
+    const existingUserDoc = usersSnap.docs[0];
+    if (!context.auth || existingUserDoc.id !== context.auth.uid) {
+      await otpRef.delete().catch(() => {});
+      throw new functions.https.HttpsError("already-exists", "This phone number is already registered.");
+    }
+  }
+
+  try {
+    let targetUid = context.auth ? context.auth.uid : null;
+
+    if (!targetUid) {
+      // 1. Create a Firebase Auth user
+      const userRecord = await admin.auth().createUser({
+        phoneNumber: normalized,
+        email: profile.email.trim(),
+        displayName: profile.name.trim()
+      });
+      targetUid = userRecord.uid;
+    } else {
+      // For Google users, link or set their phone number in Firebase Auth (best effort)
+      try {
+        await admin.auth().updateUser(targetUid, {
+          phoneNumber: normalized
+        });
+      } catch (authErr) {
+        console.warn(`[WhatsApp Registration] Could not link phone number in Auth for UID ${targetUid}:`, authErr);
+      }
+    }
+
+    // Hash the PIN if provided in the profile
+    let pinHash = "";
+    if (profile.pin) {
+      const crypto = require("crypto");
+      pinHash = crypto.createHash("sha256").update(profile.pin.toString().trim()).digest("hex");
+    }
+
+    // 2. Create the Firestore user profile
+    await db.collection("users").doc(targetUid).set({
+      email: profile.email.trim(),
+      name: profile.name.trim(),
+      phone: normalized,
+      addressLine1: profile.addressLine1.trim(),
+      addressLine2: profile.addressLine2 ? profile.addressLine2.trim() : "",
+      addressLine3: profile.addressLine3 ? profile.addressLine3.trim() : "",
+      state: profile.state ? profile.state.trim() : "",
+      city: profile.city.trim(),
+      postcode: profile.postcode.trim(),
+      country: profile.country.trim(),
+      latitude: profile.latitude || null,
+      longitude: profile.longitude || null,
+      guests: profile.guests || [],
+      pinHash: pinHash || null,
+      role: "member",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 3. Generate a Firebase custom auth token for login (only if they weren't already signed in)
+    let customToken = null;
+    if (!context.auth) {
+      customToken = await admin.auth().createCustomToken(targetUid);
+    }
+
+    // Clean up temporary OTP doc
+    await otpRef.delete().catch(() => {});
+
+    console.log(`[WhatsApp Registration] Successfully registered user: ${targetUid}`);
+    return {
+      success: true,
+      token: customToken
+    };
+
+  } catch (err) {
+    console.error("WhatsApp registration failed:", err);
+    throw new functions.https.HttpsError("internal", `Registration failed: ${err.message}`);
+  }
+});
+
 
 

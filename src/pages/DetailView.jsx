@@ -422,7 +422,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
           {s.status === "upcoming" ? (
             !user ? (
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "28px 32px", textAlign: "center" }}>
-                <p style={{ color: C.gold, fontSize: 16, fontWeight: 600, margin: "0 0 16px" }}>🙏 Join Guruji's Sangat to register for this Satsang</p>
+                <p style={{ color: C.gold, fontSize: 16, fontWeight: 600, margin: "0 0 16px" }}>Join Guruji's Sangat to register for this Satsang</p>
                 <p style={{ color: C.muted, fontSize: 14, margin: "0 0 20px 0", lineHeight: 1.5 }}>
                   Please login or create an account to register your attendance, select guests, and request Seva roles.
                 </p>

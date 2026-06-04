@@ -1,7 +1,5 @@
-const CACHE_NAME = "satsang-cache-v1";
+const CACHE_NAME = "satsang-cache-v3";
 const ASSETS = [
-  "/",
-  "/index.html",
   "/manifest.json",
   "/favicon.ico",
   "/guruji-01.png"
@@ -33,13 +31,26 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// Fetch Event (Cache First falling back to Network)
+// Fetch Event
 self.addEventListener("fetch", (e) => {
   // Only cache GET requests and skip Firebase / external API requests to prevent cache issues
-  if (e.request.method !== "GET" || e.request.url.includes("firestore.googleapis.com") || e.request.url.includes("identitytoolkit")) {
+  if (
+    e.request.method !== "GET" || 
+    e.request.url.includes("firestore.googleapis.com") || 
+    e.request.url.includes("identitytoolkit") ||
+    e.request.url.includes("securetoken.googleapis.com")
+  ) {
     return;
   }
   
+  const url = new URL(e.request.url);
+  
+  // Do not intercept or cache root HTML / index.html to avoid stale bundle references on redeployment
+  if (url.pathname === "/" || url.pathname === "/index.html") {
+    return;
+  }
+  
+  // Cache-First strategy for static assets
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       if (cachedResponse) {

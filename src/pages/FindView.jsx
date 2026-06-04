@@ -6,7 +6,7 @@ import Btn from "../components/ui/Btn";
 import Empty from "../components/ui/Empty";
 import SCard from "../components/satsang/SCard";
 
-export default function FindView({ search, setSearch, nav, user, profile, upcoming }) {
+export default function FindView({ search, setSearch, nav, user, profile, upcoming, ipCoords, ipCity, ipCountry }) {
   const [userCoords, setUserCoords] = useState(null);
   const [searchCoords, setSearchCoords] = useState(null);
   const [isGeocodingSearch, setIsGeocodingSearch] = useState(false);
@@ -40,8 +40,11 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
         } finally {
           if (active) setIsGeocodingProfile(false);
         }
+      } else if (ipCoords) {
+        setUserCoords(ipCoords);
+        setLocationLabel(`approximate location (${ipCity || ipCountry || "estimated via IP"})`);
       } else {
-        // Logged-out: estimate approximate location via IP Geolocation API
+        // Logged-out: estimate approximate location via IP Geolocation API fallback
         try {
           const res = await fetch("https://ipapi.co/json/");
           const data = await res.json();
@@ -56,7 +59,7 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
     }
     initLocation();
     return () => { active = false; };
-  }, [profile]);
+  }, [profile, ipCoords, ipCity, ipCountry]);
 
   // 2. Debounced Search Geocoding (600ms)
   useEffect(() => {

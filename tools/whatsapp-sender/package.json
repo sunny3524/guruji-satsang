@@ -1,0 +1,17 @@
+{
+  "name": "guruji-satsang-whatsapp-sender",
+  "version": "1.0.0",
+  "description": "Zero-cost self-hosted WhatsApp OTP sender using Baileys multi-device socket",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pino": "^9.1.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

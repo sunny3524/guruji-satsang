@@ -22,12 +22,12 @@ export const COUNTRY_DIAL_CODES = {
 };
 
 export const SANGAT_COUNTRIES = [
-  "United Kingdom", "India", "United States", "Canada", "Australia", 
-  "New Zealand", "United Arab Emirates", "Singapore", "South Africa", 
-  "Germany", "France", "Ireland", "Kenya", "Netherlands", "Switzerland", 
-  "Malaysia", "Hong Kong", "Bahrain", "Denmark", "Ghana", "Hungary",
-  "Indonesia", "Kuwait", "Luxembourg", "Oman", "Pakistan", "Qatar",
-  "Saudi Arabia", "Spain", "Sweden", "Thailand", "Other"
+  "India", "United Kingdom", "United States", "Canada", "Australia", 
+  "United Arab Emirates", "Thailand", "Singapore", "Malaysia", "Saudi Arabia", 
+  "Qatar", "New Zealand", "Kuwait", "Oman", "Ireland", "Bahrain", 
+  "Hong Kong", "South Africa", "Kenya", "Spain", "Indonesia", 
+  "Netherlands", "Germany", "Ghana", "Pakistan", "France", "Sweden", 
+  "Switzerland", "Denmark", "Luxembourg", "Hungary", "Other"
 ];
 
 export const COUNTRY_PHONE_EXAMPLES = {
@@ -140,4 +140,87 @@ export function normalizePhoneWithCountry(rawPhone, countryName) {
   }
   
   return `+${dialCode}${clean}`;
+}
+
+export function estimateCountryFromTimezone() {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return "India";
+    
+    const tzLower = tz.toLowerCase();
+    
+    // United Kingdom & Ireland
+    if (tzLower.includes("london") || tzLower.includes("belfast") || tzLower.includes("dublin") || tzLower === "gb" || tzLower === "gmt") {
+      return "United Kingdom";
+    }
+    // India
+    if (tzLower.includes("calcutta") || tzLower.includes("kolkata") || tzLower.includes("delhi") || tzLower.includes("mumbai") || tzLower.includes("chennai")) {
+      return "India";
+    }
+    // Canada
+    if (
+      tzLower.includes("toronto") || tzLower.includes("vancouver") || 
+      tzLower.includes("montreal") || tzLower.includes("edmonton") || 
+      tzLower.includes("winnipeg") || tzLower.includes("halifax") || 
+      tzLower.includes("st_johns") || tzLower.includes("ottawa")
+    ) {
+      return "Canada";
+    }
+    // United States (Any other America/ timezone)
+    if (tzLower.startsWith("america/")) {
+      return "United States";
+    }
+    // Australia & New Zealand
+    if (tzLower.startsWith("australia/") || tzLower.includes("sydney") || tzLower.includes("melbourne") || tzLower.includes("brisbane") || tzLower.includes("adelaide") || tzLower.includes("perth")) {
+      return "Australia";
+    }
+    if (tzLower.startsWith("pacific/auckland") || tzLower.includes("auckland") || tzLower.includes("wellington")) {
+      return "New Zealand";
+    }
+    // UAE
+    if (tzLower.includes("dubai") || tzLower.includes("abu_dhabi")) {
+      return "United Arab Emirates";
+    }
+    // Singapore
+    if (tzLower.includes("singapore")) {
+      return "Singapore";
+    }
+    // Malaysia
+    if (tzLower.includes("kuala_lumpur")) {
+      return "Malaysia";
+    }
+    // Thailand
+    if (tzLower.includes("bangkok")) {
+      return "Thailand";
+    }
+    // Middle East
+    if (tzLower.includes("riyadh")) return "Saudi Arabia";
+    if (tzLower.includes("qatar") || tzLower.includes("doha")) return "Qatar";
+    if (tzLower.includes("kuwait")) return "Kuwait";
+    if (tzLower.includes("muscat")) return "Oman";
+    if (tzLower.includes("bahrain")) return "Bahrain";
+    // Europe
+    if (tzLower.includes("paris")) return "France";
+    if (tzLower.includes("berlin") || tzLower.includes("munich") || tzLower.includes("frankfurt")) return "Germany";
+    if (tzLower.includes("amsterdam")) return "Netherlands";
+    if (tzLower.includes("madrid") || tzLower.includes("barcelona")) return "Spain";
+    if (tzLower.includes("zurich") || tzLower.includes("geneva")) return "Switzerland";
+    if (tzLower.includes("stockholm")) return "Sweden";
+    if (tzLower.includes("copenhagen")) return "Denmark";
+    if (tzLower.includes("brussels")) return "Belgium";
+    if (tzLower.includes("vienna")) return "Austria";
+    if (tzLower.includes("budapest")) return "Hungary";
+    if (tzLower.includes("luxembourg")) return "Luxembourg";
+    // Africa
+    if (tzLower.includes("johannesburg")) return "South Africa";
+    if (tzLower.includes("nairobi")) return "Kenya";
+    // Asia
+    if (tzLower.includes("hong_kong")) return "Hong Kong";
+    if (tzLower.includes("jakarta")) return "Indonesia";
+    if (tzLower.includes("karachi") || tzLower.includes("islamabad")) return "Pakistan";
+    if (tzLower.includes("accra")) return "Ghana";
+  } catch (e) {
+    // ignore and fallback
+  }
+  return "India"; // Default fallback
 }

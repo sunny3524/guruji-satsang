@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { logoutUser } from "./firebase/auth";
 import { getUpcomingSatsangs } from "./firebase/firestore";
 import { useAuth, AuthProvider } from "./hooks/useAuth";
-import { C } from "./utils/constants";
+import { C, estimateCountryFromTimezone } from "./utils/constants";
 
 // Standing Views / Pages
 import HomeView from "./pages/HomeView";
@@ -17,7 +17,6 @@ import GuidelinesView from "./pages/GuidelinesView";
 import AdminView from "./pages/AdminView";
 import LoginView from "./pages/LoginView";
 import RegisterView from "./pages/RegisterView";
-import ForgotView from "./pages/ForgotView";
 
 // Shared UI Primitives
 import DivineVachanBanner from "./components/ui/DivineVachanBanner";
@@ -47,6 +46,29 @@ function AppInner() {
   const [upcoming, setUpcoming] = useState([]);
   const [heroImg] = useState(GURUJI_IMGS[Math.floor(Math.random() * GURUJI_IMGS.length)]);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const [ipCountry, setIpCountry] = useState(() => estimateCountryFromTimezone()); // Default fallback using timezone estimation
+  const [ipCoords, setIpCoords] = useState(null);
+  const [ipCity, setIpCity] = useState("");
+
+  useEffect(() => {
+    async function fetchIPLoc() {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        if (data) {
+          if (data.country_name) setIpCountry(data.country_name);
+          if (data.latitude && data.longitude) {
+            setIpCoords({ lat: data.latitude, lng: data.longitude });
+          }
+          if (data.city) setIpCity(data.city);
+        }
+      } catch (e) {
+        console.warn("Could not estimate location/country via IP Geolocation", e);
+      }
+    }
+    fetchIPLoc();
+  }, []);
 
   const notify = (msg, type = "ok") => {
     setToast({ msg, type });
@@ -93,8 +115,24 @@ function AppInner() {
     loadUpcoming();
   }, [loadUpcoming]);
 
+  const hasAuthNoProfile = user && !profile;
+
+  // Intercept users who are logged in (e.g. via Google or Custom Token) but have no profile doc in Firestore.
+  // Force-redirect them to the register page to complete profile creation.
+  useEffect(() => {
+    if (hasAuthNoProfile && view !== "register") {
+      nav("register");
+      notify("Please complete your Sangat profile details to continue! 🙏", "ok");
+    }
+  }, [hasAuthNoProfile, view]);
+
   const isAdmin = profile?.role === "admin";
-  const navItems = user
+  const navItems = hasAuthNoProfile
+    ? [
+      { l: "Complete Profile", v: "register", accent: true },
+      { l: "Logout", fn: async () => { await logoutUser(); nav("home"); } },
+    ]
+    : user
     ? [
       { l: "Find Satsang", v: "find" },
       { l: "Guidelines", v: "guidelines" },
@@ -409,10 +447,9 @@ function AppInner() {
 
       <main>
         {view === "home" && <HomeView nav={nav} upcoming={upcoming} user={user} heroImg={heroImg} gurujiImgs={GURUJI_IMGS} />}
-        {view === "login" && <LoginView nav={nav} notify={notify} />}
-        {view === "register" && <RegisterView nav={nav} notify={notify} />}
-        {view === "forgot" && <ForgotView nav={nav} notify={notify} />}
-        {view === "find" && <FindView search={search} setSearch={setSearch} nav={nav} user={user} profile={profile} upcoming={upcoming} />}
+        {view === "login" && <LoginView nav={nav} notify={notify} ipCountry={ipCountry} />}
+        {view === "register" && <RegisterView nav={nav} notify={notify} user={user} ipCountry={ipCountry} />}
+        {view === "find" && <FindView search={search} setSearch={setSearch} nav={nav} user={user} profile={profile} upcoming={upcoming} ipCoords={ipCoords} ipCity={ipCity} ipCountry={ipCountry} />}
         {view === "detail" && <DetailView satsangId={sel} user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}
         {view === "post" && <PostView user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}
         {view === "dashboard" && <DashboardView user={user} profile={profile} nav={nav} notify={notify} />}

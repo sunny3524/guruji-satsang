@@ -2,6 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Self-healing mechanism to recover from stale service worker cache or chunk loading failures
+      window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          console.warn("Asset failed to load, healing cache and reloading...", e.target.src || e.target.href);
+          healAndReload();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        const msg = e.reason && e.reason.message;
+        if (msg && (msg.indexOf('dynamically imported module') > -1 || msg.indexOf('Failed to fetch') > -1)) {
+          console.warn("Chunk load error detected, healing cache and reloading...", msg);
+          healAndReload();
+        }
+      });
+      function healAndReload() {
+        const lastReload = localStorage.getItem('sw-heal-reload');
+        const now = Date.now();
+        if (lastReload && (now - parseInt(lastReload, 10) < 6000)) return; // prevent loop
+        localStorage.setItem('sw-heal-reload', now.toString());
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (let r of regs) r.unregister();
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            for (let k of keys) caches.delete(k);
+          });
+        }
+        setTimeout(function() { window.location.reload(true); }, 150);
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Guruji Satsang</title>
     <meta name="description" content="Find and host Guruji Satsangs near you. Register attendance, offer Seva, and connect with the Sangat." />
@@ -101,7 +134,7 @@
         padding: 8px !important;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-BIlF5Olj.js"></script>
+    <script type="module" crossorigin src="/assets/index-Dll0HE57.js"></script>
   </head>
   <body>
     <div id="root"></div>

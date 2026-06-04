@@ -1,4 +1,3 @@
-// ─── Authentication Service ───────────────────────────────────────────────────
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -6,10 +5,27 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
 import { auth, db } from "./config";
 import { createUserProfile, getUserProfile } from "./firestore";
 import { onSnapshot, doc } from "firebase/firestore";
+
+export async function signInWithGoogle() {
+  const provider = new GoogleAuthProvider();
+  provider.addScope("profile");
+  provider.addScope("email");
+  
+  const cred = await signInWithPopup(auth, provider);
+  const user = cred.user;
+  
+  // Check if profile exists in Firestore
+  const profile = await getUserProfile(user.uid);
+  const isNewProfile = !profile;
+  
+  return { user, isNewProfile };
+}
 
 export async function registerUser({ email, password, name, ...profileData }) {
   const cred = await createUserWithEmailAndPassword(auth, email, password);

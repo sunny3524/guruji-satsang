@@ -2,6 +2,8 @@ import { useState } from "react";
 import { createUserProfile, updateUserGuests } from "../firebase/firestore";
 import { validateAddressWithGoogle } from "../utils/geoUtils";
 import { C, SANGAT_COUNTRIES, COUNTRY_PHONE_EXAMPLES, COUNTRY_DIAL_CODES, normalizePhoneWithCountry } from "../utils/constants";
+import { functions } from "../firebase/config";
+import { httpsCallable } from "firebase/functions";
 import Btn from "../components/ui/Btn";
 import Empty from "../components/ui/Empty";
 
@@ -25,6 +27,33 @@ export default function ProfileView({ user, profile, nav, notify }) {
     customCountry: ""
   });
   const [saveBusy, setSaveBusy] = useState(false);
+
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinBusy, setPinBusy] = useState(false);
+
+  const handleUpdatePIN = async () => {
+    if (!newPin || newPin.length !== 6 || isNaN(newPin)) {
+      notify("Please enter a valid 6-digit numerical PIN", "err");
+      return;
+    }
+    if (newPin !== confirmPin) {
+      notify("PINs do not match", "err");
+      return;
+    }
+
+    setPinBusy(true);
+    try {
+      const updatePINFn = httpsCallable(functions, "updateUserPIN");
+      await updatePINFn({ pin: newPin });
+      notify("Secure Account PIN updated successfully! 🙏", "ok");
+      setNewPin("");
+      setConfirmPin("");
+    } catch (e) {
+      notify(e.message.replace("Firebase:", "").trim(), "err");
+    }
+    setPinBusy(false);
+  };
 
   const startEditing = () => {
     const isOther = profile?.country && !SANGAT_COUNTRIES.filter(c => c !== "Other").includes(profile.country);
@@ -533,6 +562,22 @@ export default function ProfileView({ user, profile, nav, notify }) {
                 ))}
               </select>
             </div>
+            {/* Child Checkbox for Profile page */}
+            {(newGuestRel === "Son" || newGuestRel === "Daughter") && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flex: "1 1 100%" }}>
+                <input
+                  type="checkbox"
+                  id="profileIsChild"
+                  checked={isChild}
+                  onChange={e => setIsChild(e.target.checked)}
+                  style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.gold }}
+                />
+                <label htmlFor="profileIsChild" style={{ fontSize: 13, color: C.cream, cursor: "pointer", fontFamily: "sans-serif" }}>
+                  10 years or younger (Child)
+                </label>
+              </div>
+            )}
+
             <button
               onClick={handleAddGuest}
               disabled={guestBusy}
@@ -553,22 +598,6 @@ export default function ProfileView({ user, profile, nav, notify }) {
             >
               {guestBusy ? "Adding…" : "+ Add Member"}
             </button>
-
-            {/* Child Checkbox for Profile page */}
-            {(newGuestRel === "Son" || newGuestRel === "Daughter") && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flex: "1 1 100%" }}>
-                <input
-                  type="checkbox"
-                  id="profileIsChild"
-                  checked={isChild}
-                  onChange={e => setIsChild(e.target.checked)}
-                  style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.gold }}
-                />
-                <label htmlFor="profileIsChild" style={{ fontSize: 13, color: C.cream, cursor: "pointer", fontFamily: "sans-serif" }}>
-                  12 or younger (Child)
-                </label>
-              </div>
-            )}
           </div>
 
           {/* Guests List */}
@@ -622,6 +651,88 @@ export default function ProfileView({ user, profile, nav, notify }) {
             </div>
           )}
         </div>
+
+        {/* Secure Account PIN Card */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, marginBottom: 12 }}>Secure Account PIN</div>
+          <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.5, margin: "0 0 16px 0" }}>
+            Set up or update a 6-digit numerical PIN. You can use this PIN alongside your phone number to log in if you don't have WhatsApp or if the WhatsApp OTP delivery is offline.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "flex-end" }}>
+            <div style={{ flex: "1 1 200px" }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>New 6-Digit PIN *</label>
+              <input
+                type="password"
+                pattern="[0-9]*"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="e.g. 123456"
+                value={newPin}
+                onChange={e => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                style={{
+                  background: "none",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  color: C.cream,
+                  fontSize: 15,
+                  letterSpacing: "0.2em",
+                  width: "100%",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  height: 38
+                }}
+              />
+            </div>
+            <div style={{ flex: "1 1 200px" }}>
+              <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Confirm New PIN *</label>
+              <input
+                type="password"
+                pattern="[0-9]*"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="e.g. 123456"
+                value={confirmPin}
+                onChange={e => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                style={{
+                  background: "none",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  color: C.cream,
+                  fontSize: 15,
+                  letterSpacing: "0.2em",
+                  width: "100%",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  height: 38
+                }}
+              />
+            </div>
+            <button
+              onClick={handleUpdatePIN}
+              disabled={pinBusy}
+              style={{
+                background: C.gold,
+                border: "none",
+                color: C.bg,
+                borderRadius: 8,
+                padding: "0 20px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                height: 38,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14
+              }}
+            >
+              {pinBusy ? "Updating PIN…" : "Update PIN"}
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
