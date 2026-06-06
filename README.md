@@ -1,9 +1,10 @@
-# OM NAMAH SHIVAY SHIVJI SADA SAHAY 🙏
+# 🙏 OM NAMAH SHIVAY SHIVJI SADA SAHAY 🙏
+# 🙏mOM NAMAH SHIVAY GURUJI SADA SAHAY 🙏
 # JAI GURUJI MAHARAJ 🌸
 
 # Guruji Satsang Management App
 
-Welcome to the **Guruji Satsang Management App**, a devotee-centric digital platform designed to unite the Sangat (community) under the divine blessings of Guruji Maharaj. 
+Welcome to the **Guruji Satsang Management App**, a devotee-centric digital platform designed to unite the Sangat under the divine blessings of Guruji Maharaj. 
 
 This app serves as a centralized hub for devotees to discover local Satsangs, register attendance, volunteer for spiritual Sevas (selfless service roles), and coordinate with hosts. For organizers and administrators, it provides robust management tools to coordinate logistics, approve attendee requests, assign seva roles, and broadcast messages to the Sangat.
 

@@ -43,7 +43,9 @@ guruji-satsang/
 
 ### Authentication
 1. In Firebase Console → **Authentication** → **Get started**
-2. Click **Sign-in method** → Enable **Email/Password**
+2. Click **Sign-in method** → Enable the following Sign-in providers:
+   - **Google** (For Google Sign-In registration and login)
+   - **Phone** (For registration SMS verification and phone credentials linking)
 3. Save
 
 ### Firestore Database
@@ -89,6 +91,9 @@ npm install
 
 # Install Cloud Functions dependencies
 cd functions && npm install && cd ..
+
+# Install WhatsApp sender daemon dependencies
+cd tools/whatsapp-sender && npm install && cd ../..
 ```
 
 ---
@@ -103,21 +108,21 @@ firebase use --add        # select your project
 
 ---
 
-## STEP 6 — Set up email credentials for notifications
+## STEP 6 — Set up credentials & configurations
 
+### 1. Email credentials for notifications
 The Cloud Functions use Gmail (or you can swap for SendGrid).
 
-### Gmail option (easiest):
+#### Gmail option (easiest):
 1. Enable 2-Factor Authentication on your Gmail account
 2. Go to https://myaccount.google.com/apppasswords
 3. Generate an App Password for "Mail"
 4. Run:
-
 ```bash
 firebase functions:config:set email.user="youraddress@gmail.com" email.pass="your-16-char-app-password"
 ```
 
-### SendGrid option (better for production):
+#### SendGrid option (better for production):
 1. Create a free account at https://sendgrid.com
 2. Generate an API key
 3. In `functions/index.js`, replace nodemailer with `@sendgrid/mail`:
@@ -126,6 +131,18 @@ firebase functions:config:set email.user="youraddress@gmail.com" email.pass="you
    sgMail.setApiKey(functions.config().sendgrid.key);
    ```
 4. Run: `firebase functions:config:set sendgrid.key="SG.xxx"`
+
+### 2. Configure WhatsApp OTP Gateway settings
+For the WhatsApp OTP login to function, set the location URL and the access key of your WhatsApp sender daemon:
+```bash
+firebase functions:config:set whatsapp.url="https://your-whatsapp-sender-daemon.com" whatsapp.secret="your_shared_secret_token"
+```
+
+Create a `.env` file inside `tools/whatsapp-sender/` to configure the daemon server:
+```env
+PORT=3001
+API_SECRET=your_shared_secret_token
+```
 
 ---
 
@@ -174,14 +191,18 @@ You will now see the **⚙ Admin** menu item when logged in.
 ## Running locally for development
 
 ```bash
+# Start the Vite development server (runs on Port 3000)
 npm run dev
-# App runs at http://localhost:3000
+
+# In a separate terminal, start the WhatsApp sender daemon (runs on Port 3001)
+cd tools/whatsapp-sender && npm start
 ```
 
 For local Functions emulation:
 ```bash
 firebase emulators:start
 ```
+*(Make sure to set functions config for development: `firebase functions:config:set whatsapp.url="http://localhost:3001" whatsapp.secret="your_shared_secret_token"`)*
 
 ---
 
@@ -190,28 +211,34 @@ firebase emulators:start
 ```
 users/
   {uid}/
-    name, email, phone, address, city, postcode, role, createdAt
+    name, email, phone, address, city, postcode, role, pinHash, guests: [...], createdAt
 
 satsangs/
   {satsangId}/
     title, date, time, city, postcode, address, description
     maxAttendees, attendeeCount, status
     organizerUid, organizerName, organizerEmail, organizerPhone
-    sevas: [{ id, needed, enrolled: [{uid, name}] }]
+    sevas: { s1: { id, needed, opted, enrolled: [{uid, name, attendeeUid}] } }
     createdAt, updatedAt
     attendees/
       {uid}/
-        userUid, userName, userEmail, userPhone, guests, registeredAt
+        userUid, userName, userEmail, userPhone, guests, status, attendeesList: [...], requestedSevas: [...], registeredAt
+
+otps/
+  {phone}/
+    code, attempts, createdAt, expiresAt
 ```
 
 ---
 
 ## Security
 
-- Passwords handled entirely by Firebase Authentication (never stored in Firestore)
-- Firestore rules prevent users from reading/writing other users' data
-- Role changes can only be made by admins
-- Cloud Functions verify admin role server-side before executing sensitive operations
+- Passwords are not used; devotee logins utilize a secure 6-digit numerical PIN or a passwordless WhatsApp OTP.
+- Devotee PINs are hashed (SHA-256) and stored securely inside the Firestore user document (`pinHash`). Raw PINs are never saved in the database.
+- SMS OTP registration verification is handled entirely by Firebase Authentication.
+- Firestore rules prevent users from reading/writing other users' private profiles, attending list RSVPs, or other organizers' Satsangs.
+- Role changes can only be made directly in the Firestore database by project administrators.
+- Cloud Functions verify caller roles and authentication states server-side before executing sensitive operations.
 
 ---
 
