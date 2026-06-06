@@ -6,10 +6,11 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
+import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCPmzH9kKoqzf4hOQgmJHx85k7bKPZE9cg",
-  authDomain: "guruji-satsang-b650a.firebaseapp.com",
+  authDomain: "gurujisatsangs.com",
   projectId: "guruji-satsang-b650a",
   storageBucket: "guruji-satsang-b650a.firebasestorage.app",
   messagingSenderId: "668074740281",
@@ -22,4 +23,5 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app, "europe-west2"); // use the deployed Cloud Functions region
+export const analytics = getAnalytics(app);
 export default app;

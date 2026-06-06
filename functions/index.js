@@ -191,7 +191,7 @@ exports.onUserCreated = region.firestore
       `
       <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
         <div style="text-align:center;margin-bottom:24px;">
-          <img src="https://guruji-satsang-b650a.web.app/guruji-01.png" width="100" style="border-radius:50%;border:2px solid #d4972a;" alt="Guruji"/>
+          <img src="https://gurujisatsangs.com/guruji-01.jpg" width="100" style="border-radius:50%;border:2px solid #d4972a;" alt="Guruji"/>
           <p style="color:#d4972a;letter-spacing:0.2em;font-size:11px;margin-top:12px;">OM NAMAH SHIVAY SHIVJI SADA SAHAY</p>
           <p style="color:#d4972a;letter-spacing:0.2em;font-size:11px;margin-top:12px;">OM NAMAH SHIVAY GURUJI SADA SAHAY</p>
         </div>
