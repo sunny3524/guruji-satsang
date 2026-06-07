@@ -5,6 +5,8 @@ import Page from "../components/ui/Page";
 import Btn from "../components/ui/Btn";
 import Empty from "../components/ui/Empty";
 import SCard from "../components/satsang/SCard";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase/config";
 
 export default function FindView({ search, setSearch, nav, user, profile, upcoming, ipCoords, ipCity, ipCountry }) {
   const [userCoords, setUserCoords] = useState(null);
@@ -16,8 +18,24 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
   const [geoError, setGeoError] = useState(null);
   const [searchError, setSearchError] = useState(null);
   const [visibilityTab, setVisibilityTab] = useState("public"); // "public" | "private"
+  const [allDevotees, setAllDevotees] = useState([]);
 
   const isOrganiserOrAdmin = profile?.role === "organiser" || profile?.role === "host" || profile?.role === "admin";
+
+  useEffect(() => {
+    const fetchSangatPresence = async () => {
+      try {
+        const getSangatPresenceFn = httpsCallable(functions, "getSangatPresence");
+        const res = await getSangatPresenceFn();
+        if (res.data?.success && Array.isArray(res.data?.buckets)) {
+          setAllDevotees(res.data.buckets);
+        }
+      } catch (err) {
+        console.warn("Failed fetching Sangat presence:", err);
+      }
+    };
+    fetchSangatPresence();
+  }, []);
 
   const visibleUpcoming = upcoming.filter(s => {
     if (s.isPrivate === true) {
@@ -513,15 +531,23 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
       `}</style>
 
       {/* Interactive Sangat Near You Map */}
-      <SangatNearYouMap upcoming={visibleUpcoming} nav={nav} />
+      <SangatNearYouMap 
+        upcoming={visibleUpcoming} 
+        nav={nav} 
+        devotees={allDevotees} 
+        userCoords={userCoords}
+        searchCoords={searchCoords}
+      />
     </Page>
   );
 }
 
-function SangatNearYouMap({ upcoming, nav }) {
+function SangatNearYouMap({ upcoming, nav, devotees = [], userCoords, searchCoords }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const [activeTab, setActiveTab] = useState("all"); // all, hubs, satsangs
+  const [showHubs, setShowHubs] = useState(true);
+  const [showSangat, setShowSangat] = useState(true);
+  const [showSatsangs, setShowSatsangs] = useState(true);
   
   useEffect(() => {
     // Check if Leaflet is globally available
@@ -532,11 +558,24 @@ function SangatNearYouMap({ upcoming, nav }) {
       mapRef.current.remove();
     }
 
+    // Determine initial center and zoom dynamically based on search or user profile coordinates
+    let center = [20, 10];
+    let zoom = 2;
+
+    if (searchCoords) {
+      center = [searchCoords.lat, searchCoords.lng];
+      zoom = 11;
+    } else if (userCoords) {
+      center = [userCoords.lat, userCoords.lng];
+      zoom = 11;
+    }
+
     // Initialize Leaflet map
     const map = window.L.map(mapContainerRef.current, {
-      center: [20, 10],
-      zoom: 2,
+      center: center,
+      zoom: zoom,
       minZoom: 2,
+      maxZoom: 13, // Restrict zoom level so users can't zoom down to exact streets
       maxBounds: [
         [-85, -180],
         [85, 180]
@@ -608,12 +647,12 @@ function SangatNearYouMap({ upcoming, nav }) {
       { lat: 13.7563, lng: 100.5018, label: "Thailand (Bangkok)", count: "1,200+" }
     ];
 
-    if (activeTab === "all" || activeTab === "hubs") {
+    if (showHubs) {
       hubs.forEach(h => {
         window.L.marker([h.lat, h.lng], { icon: hubIcon })
           .bindPopup(`
             <div style="font-family: var(--font-body); text-align: center;">
-              <strong style="color: #d4972a; font-size: 14px; display: block; margin-bottom: 4px;">🌹 ${h.label} Hub</strong>
+              <strong style="color: #d4972a; font-size: 14px; display: block; margin-bottom: 4px;">🌍 ${h.label} Hub</strong>
               <span style="color: #fdfbf7; font-size: 12px; display: block; margin-bottom: 8px;">Estimated Sangat Size: <strong>${h.count} Devotees</strong></span>
               <p style="font-size: 11px; color: #9c7050; margin: 0; line-height: 1.4;">Connecting regional sangat for group prayers, seva activities, and monthly Satsang gatherings.</p>
             </div>
@@ -623,7 +662,7 @@ function SangatNearYouMap({ upcoming, nav }) {
     }
 
     // 2. Add upcoming Satsangs pins
-    if (activeTab === "all" || activeTab === "satsangs") {
+    if (showSatsangs) {
       upcoming.forEach(s => {
         if (s.latitude && s.longitude && s.status !== "cancelled") {
           window.L.marker([s.latitude, s.longitude], { icon: satsangIcon })
@@ -654,7 +693,64 @@ function SangatNearYouMap({ upcoming, nav }) {
         }
       });
     }
-  }, [upcoming, activeTab]);
+
+    // 3. Add Sangat Presence (density circles) if checked
+    if (showSangat) {
+      devotees.forEach(b => {
+        // Outer glowing halo (fixed-pixel size, visible at low zoom levels)
+        window.L.circleMarker([b.lat, b.lng], {
+          color: C.gold,
+          fillColor: C.gold,
+          fillOpacity: 0.08,
+          radius: Math.min(45, 18 + b.count * 3),
+          weight: 0
+        }).addTo(map);
+
+        // Inner core (fixed-pixel size, visible at low zoom levels)
+        window.L.circleMarker([b.lat, b.lng], {
+          color: C.gold,
+          fillColor: C.gold,
+          fillOpacity: 0.3,
+          radius: Math.min(20, 8 + b.count * 1.5),
+          weight: 1.5
+        }).addTo(map)
+          .bindPopup(`
+            <div style="font-family: var(--font-body); text-align: center;">
+              <strong style="color: #d4972a; font-size: 13px; display: block; margin-bottom: 4px;">👥 Local Sangat Presence</strong>
+              <span style="color: #fdfbf7; font-size: 12px; display: block;">
+                Approx. <strong>${b.count} Devotee${b.count > 1 ? "s" : ""}</strong> nearby
+              </span>
+              <span style="font-size: 10px; color: #9c7050; display: block; margin-top: 4px; line-height: 1.3;">
+                Exact locations are hidden to respect privacy.
+              </span>
+            </div>
+          `);
+      });
+    }
+
+    // 4. Fit map bounds to frame user/search location, local devotees, and upcoming satsangs
+    const fitPoints = [];
+    if (showSangat && devotees.length > 0) {
+      devotees.forEach(b => fitPoints.push([b.lat, b.lng]));
+    }
+    if (showSatsangs) {
+      upcoming.forEach(s => {
+        if (s.latitude && s.longitude && s.status !== "cancelled") {
+          fitPoints.push([s.latitude, s.longitude]);
+        }
+      });
+    }
+    if (searchCoords) {
+      fitPoints.push([searchCoords.lat, searchCoords.lng]);
+    } else if (userCoords) {
+      fitPoints.push([userCoords.lat, userCoords.lng]);
+    }
+
+    if (fitPoints.length > 0) {
+      const bounds = window.L.latLngBounds(fitPoints);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 11 });
+    }
+  }, [upcoming, showHubs, showSatsangs, showSangat, devotees, userCoords, searchCoords]);
 
   return (
     <div style={{
@@ -679,17 +775,18 @@ function SangatNearYouMap({ upcoming, nav }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 16 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {[
-            ["all", "Show All Pins"],
-            ["hubs", "Global Sangat Hubs"],
-            ["satsangs", "Upcoming Satsangs"]
-          ].map(([k, l]) => (
+            [showHubs, setShowHubs, "🌍 Global Hubs"],
+            [showSangat, setShowSangat, "👥 Local Sangat"],
+            [showSatsangs, setShowSatsangs, "🌹 Upcoming Satsangs"]
+          ].map(([val, setter, label]) => (
             <button
-              key={k}
-              onClick={() => setActiveTab(k)}
+              key={label}
+              type="button"
+              onClick={() => setter(!val)}
               style={{
-                background: activeTab === k ? C.gold : "none",
-                border: `1px solid ${activeTab === k ? C.gold : C.border}`,
-                color: activeTab === k ? C.bg : C.cream,
+                background: val ? C.gold : "none",
+                border: `1px solid ${val ? C.gold : C.border}`,
+                color: val ? C.bg : C.cream,
                 padding: "6px 14px",
                 borderRadius: 8,
                 fontSize: 12,
@@ -698,7 +795,7 @@ function SangatNearYouMap({ upcoming, nav }) {
                 transition: "all 0.2s"
               }}
             >
-              {l}
+              {label}
             </button>
           ))}
         </div>

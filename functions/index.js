@@ -2022,5 +2022,42 @@ exports.registerUserWithWhatsAppOTP = region.https.onCall(async (data, context) 
   }
 });
 
+// ── Get Sangat Presence (Anonymized Coordinates and Counts) ──────────────────────
+exports.getSangatPresence = region.https.onCall(async (data, context) => {
+  try {
+    const snap = await db.collection("users").get();
+    const buckets = {};
+
+    snap.forEach(doc => {
+      const u = doc.data();
+      // Only include users who haven't opted out and have valid coordinates
+      if (u.showOnCommunityMap === false) return;
+      if (!u.latitude || !u.longitude) return;
+
+      // Round coordinates to 2 decimal places to bucket locations (approx. 1.1km block size)
+      const latVal = Math.round(u.latitude * 100) / 100;
+      const lngVal = Math.round(u.longitude * 100) / 100;
+      const key = `${latVal.toFixed(2)},${lngVal.toFixed(2)}`;
+
+      if (!buckets[key]) {
+        buckets[key] = {
+          lat: latVal,
+          lng: lngVal,
+          count: 0
+        };
+      }
+      buckets[key].count += 1;
+    });
+
+    return {
+      success: true,
+      buckets: Object.values(buckets)
+    };
+  } catch (err) {
+    console.error("Failed fetching Sangat presence:", err);
+    throw new functions.https.HttpsError("internal", `Failed to get Sangat presence: ${err.message}`);
+  }
+});
+
 
 

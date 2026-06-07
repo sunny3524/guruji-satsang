@@ -247,7 +247,8 @@ export default function RegisterView({ nav, notify, user, ipCountry }) {
           latitude,
           longitude,
           guests,
-          pinHash
+          pinHash,
+          showOnCommunityMap: true
         });
         notify(`Jai Guruji! Welcome to the Sangat, ${f.name} 🙏`);
         nav("find");
@@ -366,7 +367,8 @@ export default function RegisterView({ nav, notify, user, ipCountry }) {
         latitude,
         longitude,
         guests,
-        pinHash
+        pinHash,
+        showOnCommunityMap: true
       });
 
       notify(`Jai Guruji! Welcome to the Sangat, ${f.name} 🙏`);

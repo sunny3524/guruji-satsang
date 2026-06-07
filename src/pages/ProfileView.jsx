@@ -24,7 +24,8 @@ export default function ProfileView({ user, profile, nav, notify }) {
     city: "",
     postcode: "",
     country: "United Kingdom",
-    customCountry: ""
+    customCountry: "",
+    showOnCommunityMap: true
   });
   const [saveBusy, setSaveBusy] = useState(false);
 
@@ -67,7 +68,8 @@ export default function ProfileView({ user, profile, nav, notify }) {
       city: profile?.city || "",
       postcode: profile?.postcode || "",
       country: isOther ? "Other" : (profile?.country || "United Kingdom"),
-      customCountry: isOther ? profile.country : ""
+      customCountry: isOther ? profile.country : "",
+      showOnCommunityMap: profile?.showOnCommunityMap !== false
     });
     setIsEditing(true);
   };
@@ -112,7 +114,8 @@ export default function ProfileView({ user, profile, nav, notify }) {
         postcode: editForm.postcode.trim(),
         country: targetCountry,
         latitude,
-        longitude
+        longitude,
+        showOnCommunityMap: editForm.showOnCommunityMap !== false
       });
       setIsEditing(false);
       notify("Profile updated successfully! 🙏");
@@ -439,6 +442,32 @@ export default function ProfileView({ user, profile, nav, notify }) {
                 </div>
               </div>
 
+              {/* Privacy Setting */}
+              <div style={{ marginTop: 12, background: "rgba(255,255,255,0.02)", border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px" }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.showOnCommunityMap !== false}
+                    onChange={e => setEditForm(prev => ({ ...prev, showOnCommunityMap: e.target.checked }))}
+                    style={{
+                      marginTop: 3,
+                      accentColor: C.gold,
+                      cursor: "pointer",
+                      width: 14,
+                      height: 14
+                    }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.cream, marginBottom: 2 }}>
+                      🌍 Show approximate location on Sangat Map
+                    </div>
+                    <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
+                      Share your general neighborhood with other Sangat members. No personal information or exact address coordinates will ever be displayed.
+                    </div>
+                  </div>
+                </label>
+              </div>
+
               {/* Action Buttons */}
               <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
                 <button
@@ -489,7 +518,8 @@ export default function ProfileView({ user, profile, nav, notify }) {
                 ["Address Line 3", profile?.addressLine3],
                 ["State / County / Region", profile?.state],
                 ["City", profile?.city],
-                ["Zip / Postal Code", profile?.postcode]
+                ["Zip / Postal Code", profile?.postcode],
+                ["Show on Sangat Map", profile?.showOnCommunityMap !== false ? "Yes (Approximate)" : "No"]
               ].map(([k, v]) => (
                 <div
                   key={k}
