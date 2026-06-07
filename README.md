@@ -49,14 +49,17 @@ The platform consists of several integrated frontend views that route dynamicall
 ### 2. Search & Proximity Module (`FindView.jsx`)
 * **Interactive Map**: Integrates a Leaflet-based map displaying upcoming Satsangs and global Sangat Hub locations.
 * **Proximity Calculation**: Sequentially orders Satsangs from nearest to farthest based on your coordinates (estimated via timezone / IP geolocation or manually typed postcode/city).
+* **Visibility Filtering**: Supports toggling between Public and 🔒 Private tab filters (restricted to hosts and admins) to view and manage public vs. invite-only Satsangs.
 
 ### 3. Detail & Registration Module (`DetailView.jsx`)
 * **Logistics Info**: Displays detailed Satsang timings, host contact information, addresses, and navigation routes.
 * **RSVP Form**: Allows devotees to enroll themselves and their profile-registered family guests.
 * **Organizer Dashboard**: Allows hosts to approve/decline RSVPs, manage the waitlist, and assign or decline volunteers for Seva slots.
+* **Invite-Only Warning**: Displays a lock warning banner and a private status badge for invite-only Satsangs, alerting devotees to keep the link and location details confidential.
 
 ### 4. Hosting Module (`PostView.jsx`)
-* **Step-by-Step Hosting**: A clean form to schedule a new Satsang, specify attendee limits, and define what Seva roles are needed.
+* **Step-by-Step Hosting**: A clean form to schedule a new Satsang, specify attendee limits, define Seva roles, and choose visibility.
+* **Satsang Visibility**: Provides a Visibility selector allowing organizers to post public Satsangs (listed everywhere) or private Satsangs (accessible only via direct shared links).
 * **Address Validation**: Integrates Google Address Validation with OpenStreetMap Nominatim coordinate fallback, automatically extracting accurate latitude and longitude coordinates.
 
 ### 5. Profile & Guest Settings (`ProfileView.jsx`)
@@ -64,7 +67,8 @@ The platform consists of several integrated frontend views that route dynamicall
 
 ### 6. Satsang Dashboard (`DashboardView.jsx`)
 * **Sangat Summary**: Displays devotee statistics, including active Sevas and total hosted/attended Satsangs.
-* **Timeline Views**: Groups user participation into "Satsangs I'm Hosting", "Satsangs I'm Attending", and "Concluded Satsangs".
+* **Timeline Views**: Groups user participation into "Satsangs I'm Hosting", "Satsangs I'm Attending" (displaying private Satsangs regardless of pending/waitlist state), and "Concluded Satsangs".
+* **Private Status Badge**: Shows a lock status tag next to private Satsangs.
 
 ### 7. Admin Panel (`AdminView.jsx`)
 * **Sangat Registry**: Admin audits of registered Sangat profiles, user role management (assigning host or admin roles), and mail broadcasts.

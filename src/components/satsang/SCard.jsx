@@ -32,9 +32,15 @@ export default function SCard({ s, nav }) {
         letterSpacing: "0.1em",
         textTransform: "uppercase",
         marginBottom: 8,
-        fontFamily: "sans-serif"
+        fontFamily: "sans-serif",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
       }}>
-        {fmtDate(s.date)} · {fmtTime(s.time)}
+        <span>{fmtDate(s.date)} · {fmtTime(s.time)}</span>
+        {s.isPrivate && (
+          <span style={{ color: C.saffron, fontWeight: "bold" }}>🔒 Private</span>
+        )}
       </div>
       <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{s.title}</div>
       <div style={{

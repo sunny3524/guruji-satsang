@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase/config";
 import {
-  subscribeSatsang, getAttendees, checkAttendance, cancelSatsang
+  subscribeSatsang, getAttendees, checkAttendance, cancelSatsang, updateSatsang
 } from "../firebase/firestore";
 import { C, fmtDate, fmtTime, STANDARD_SEVAS } from "../utils/constants";
 import Label from "../components/ui/Label";
@@ -44,6 +44,25 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
   const left = s.maxAttendees - (s.attendeeCount || 0);
   const isHost = s && user && s.organizerUid === user.uid;
   const isAdmin = profile?.role === "admin";
+
+  const handleToggleVisibility = async () => {
+    const nextPrivate = !s.isPrivate;
+    const confirmMsg = nextPrivate
+      ? "Are you sure you want to make this Satsang private? This will make the Satsang hidden from everyone on the Find Satsang page, and it will only be accessible via direct link sharing. 🙏"
+      : "Are you sure you want to make this Satsang public? This action will make the Satsang visible to all Sangat members registered on the app, displaying it on the Find Satsang page and map. 🙏";
+
+    if (window.confirm(confirmMsg)) {
+      setBusy(true);
+      try {
+        await updateSatsang(satsangId, { isPrivate: nextPrivate });
+        notify(nextPrivate ? "Satsang is now private. 🔒" : "Satsang is now public. 🌍");
+        if (onRefresh) onRefresh();
+      } catch (e) {
+        notify(e.message, "err");
+      }
+      setBusy(false);
+    }
+  };
 
   const mySevaNames = Object.values(s.sevas || {})
     .filter(sv => sv.enrolled?.some(e => e.attendeeUid === user?.uid || e.uid === user?.uid))
@@ -378,7 +397,92 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
             ⚠️ This Satsang has been cancelled.
           </div>
         )}
-        <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 10, fontFamily: "sans-serif" }}>{fmtDate(s.date)} · {fmtTime(s.time)}</div>
+        {s.isPrivate && (
+          <div style={{
+            background: "linear-gradient(135deg, rgba(39, 14, 3, 0.9) 0%, rgba(26, 8, 0, 0.95) 100%)",
+            border: `1px solid ${C.gold}`,
+            borderRadius: 10,
+            padding: "16px 20px",
+            marginBottom: 20,
+            boxShadow: "0 4px 15px rgba(212,151,42,0.15)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 18 }}>🔒</span>
+              <strong style={{ color: C.gold, fontSize: 15 }}>Private & Invite-Only Satsang</strong>
+            </div>
+            <p style={{ color: C.cream, fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+              This is a private, invite-only Satsang shared directly with you. Please do not share this page or invitation details with other Sangat members without the host's knowledge and permission. Let's keep the sanctity and capacity limits of this private Darbar respected.
+            </p>
+          </div>
+        )}
+        <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 10, fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {s.isPrivate ? (
+            <span style={{ 
+              background: "rgba(224,107,16,0.15)", 
+              color: C.saffron, 
+              border: `1px solid ${C.saffron}`, 
+              fontSize: 9, 
+              fontWeight: "bold", 
+              padding: "2px 8px", 
+              borderRadius: 12, 
+              fontFamily: "sans-serif",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4
+            }}>
+              🔒 Private
+            </span>
+          ) : (
+            (isHost || isAdmin) && (
+              <span style={{ 
+                background: "rgba(76,130,80,0.15)", 
+                color: "#7db87f", 
+                border: "1px solid rgba(76,130,80,0.4)", 
+                fontSize: 9, 
+                fontWeight: "bold", 
+                padding: "2px 8px", 
+                borderRadius: 12, 
+                fontFamily: "sans-serif",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4
+              }}>
+                🌍 Public
+              </span>
+            )
+          )}
+
+          {(isHost || isAdmin) && (
+            <button
+              onClick={handleToggleVisibility}
+              disabled={busy}
+              style={{
+                background: s.isPrivate ? "rgba(212,151,42,0.1)" : "rgba(224,107,16,0.1)",
+                border: s.isPrivate ? `1px solid ${C.gold}` : `1px solid ${C.saffron}`,
+                color: s.isPrivate ? C.gold : C.saffron,
+                borderRadius: 12,
+                padding: "2px 8px",
+                fontSize: 9,
+                fontWeight: "bold",
+                cursor: "pointer",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                transition: "all 0.2s",
+                outline: "none"
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = s.isPrivate ? "rgba(212,151,42,0.2)" : "rgba(224,107,16,0.2)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = s.isPrivate ? "rgba(212,151,42,0.1)" : "rgba(224,107,16,0.1)";
+              }}
+            >
+              {s.isPrivate ? "Make Public" : "Make Private"}
+            </button>
+          )}
+
+          <span>{fmtDate(s.date)} · {fmtTime(s.time)}</span>
+        </div>
         <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 10px" }}>{s.title}</h2>
         <div style={{ fontSize: 14, color: C.muted, marginBottom: 14 }}>📍 {s.addressLine1 || s.address}, {s.city} {s.postcode}</div>
         {s.description && <p style={{ fontSize: 15, color: "#c0a060", lineHeight: 1.8, marginBottom: 22 }}>{s.description}</p>}
@@ -660,7 +764,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
       {/* Host / Admin Sangat Attendance Management */}
       {(isHost || isAdmin) && (
         <div style={{ marginTop: 40, borderTop: `1px solid ${C.border}`, paddingTop: 30 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", SystemAlignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, margin: 0 }}>Sangat Attendance & Seva Management</h3>
             {s.status === "upcoming" && (
               <button

@@ -22,7 +22,8 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
     date: "",
     time: "",
     maxAttendees: 100,
-    description: ""
+    description: "",
+    isPrivate: false
   });
   const [chosenSv, setChosenSv] = useState([]);
   const [showSevaPanel, setShowSevaPanel] = useState(() => {
@@ -130,7 +131,7 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
         [sv.id]: { id: sv.id, needed: sv.needed, opted: 0, confirmed: sv.confirmed || 0, enrolled: [] }
       }), {});
       
-      await createSatsang({
+      const satsangId = await createSatsang({
         title: f.title,
         description: f.description,
         addressLine1: f.addressLine1.trim(),
@@ -149,10 +150,15 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
         organizerName: profile?.name || user.displayName,
         organizerEmail: user.email,
         organizerPhone: profile?.phone || "",
+        isPrivate: !!f.isPrivate,
       }, user.uid);
       onRefresh();
-      notify("Satsang posted! Shukrana Guruji 🙏");
-      nav("find");
+      if (f.isPrivate) {
+        notify("Congratulations! Your private Satsang is now posted. Share this page URL directly to invite guests. 🔒");
+      } else {
+        notify("Congratulations! Your public Satsang is now posted. 🙏");
+      }
+      nav("detail", satsangId);
     } catch (e) { notify(e.message, "err"); }
     setBusy(false);
   };
@@ -244,6 +250,56 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
         <FField label="Time *" type="time" v={f.time} on={set("time")} />
       </div>
       <FField label="Max Attendees *" type="number" v={f.maxAttendees} on={set("maxAttendees")} />
+
+      <div style={{ marginBottom: 20 }}>
+        <Label>Satsang Visibility *</Label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={() => setF(p => ({ ...p, isPrivate: false }))}
+            style={{
+              background: !f.isPrivate ? "rgba(212, 151, 42, 0.1)" : C.card,
+              border: `1px solid ${!f.isPrivate ? C.gold : C.border}`,
+              borderRadius: 10,
+              padding: "16px 20px",
+              textAlign: "left",
+              color: C.cream,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              outline: "none"
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: 14, color: !f.isPrivate ? C.gold : C.cream, marginBottom: 4 }}>
+              🌍 Public Satsang
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
+              Visible to everyone. Listed on map and search results.
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setF(p => ({ ...p, isPrivate: true }))}
+            style={{
+              background: f.isPrivate ? "rgba(212, 151, 42, 0.1)" : C.card,
+              border: `1px solid ${f.isPrivate ? C.gold : C.border}`,
+              borderRadius: 10,
+              padding: "16px 20px",
+              textAlign: "left",
+              color: C.cream,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              outline: "none"
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: 14, color: f.isPrivate ? C.gold : C.cream, marginBottom: 4 }}>
+              🔒 Private Satsang
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
+              Invite-only. Hidden from search/map. Shareable via direct link.
+            </div>
+          </button>
+        </div>
+      </div>
 
       <div style={{ marginTop: 26 }}>
         <button

@@ -15,6 +15,17 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
   const [locationLabel, setLocationLabel] = useState("");
   const [geoError, setGeoError] = useState(null);
   const [searchError, setSearchError] = useState(null);
+  const [visibilityTab, setVisibilityTab] = useState("public"); // "public" | "private"
+
+  const isOrganiserOrAdmin = profile?.role === "organiser" || profile?.role === "host" || profile?.role === "admin";
+
+  const visibleUpcoming = upcoming.filter(s => {
+    if (s.isPrivate === true) {
+      return isOrganiserOrAdmin && visibilityTab === "private";
+    } else {
+      return visibilityTab === "public";
+    }
+  });
 
   // 1. Geocode Profile or Estimate IP Geolocation on Mount
   useEffect(() => {
@@ -131,7 +142,7 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
   const activeSearch = search.trim().toLowerCase();
 
   // Create calculated list
-  const calculatedSatsangs = upcoming.map(s => {
+  const calculatedSatsangs = visibleUpcoming.map(s => {
     let distance = null;
     if (activeSearch && searchCoords) {
       distance = getDistanceKm(s.latitude, s.longitude, searchCoords.lat, searchCoords.lng);
@@ -195,6 +206,52 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
 
   return (
     <Page title="Find a Satsang" sub="Connect with the Sangat in your region">
+      {isOrganiserOrAdmin && (
+        <div style={{
+          display: "flex",
+          gap: 12,
+          marginBottom: 24,
+          borderBottom: `1px solid ${C.border}`,
+          paddingBottom: 2
+        }}>
+          <button
+            onClick={() => setVisibilityTab("public")}
+            style={{
+              background: "none",
+              border: "none",
+              borderBottom: visibilityTab === "public" ? `3.5px solid ${C.gold}` : "3.5px solid transparent",
+              color: visibilityTab === "public" ? C.gold : C.muted,
+              padding: "10px 16px",
+              cursor: "pointer",
+              fontSize: 15,
+              fontWeight: 700,
+              fontFamily: "var(--font-body)",
+              transition: "all 0.2s",
+              outline: "none"
+            }}
+          >
+            Public Satsangs
+          </button>
+          <button
+            onClick={() => setVisibilityTab("private")}
+            style={{
+              background: "none",
+              border: "none",
+              borderBottom: visibilityTab === "private" ? `3.5px solid ${C.gold}` : "3.5px solid transparent",
+              color: visibilityTab === "private" ? C.gold : C.muted,
+              padding: "10px 16px",
+              cursor: "pointer",
+              fontSize: 15,
+              fontWeight: 700,
+              fontFamily: "var(--font-body)",
+              transition: "all 0.2s",
+              outline: "none"
+            }}
+          >
+            🔒 Private Satsangs
+          </button>
+        </div>
+      )}
       {/* Geolocation, search, and sequencing control panel */}
       <div style={{
         background: C.card,
@@ -456,7 +513,7 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
       `}</style>
 
       {/* Interactive Sangat Near You Map */}
-      <SangatNearYouMap upcoming={upcoming} nav={nav} />
+      <SangatNearYouMap upcoming={visibleUpcoming} nav={nav} />
     </Page>
   );
 }

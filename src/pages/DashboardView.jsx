@@ -46,7 +46,7 @@ export default function DashboardView({ user, profile, nav, notify }) {
   const upcomingHosted = hosted.filter(s => s.status === "upcoming");
   const upcomingAttending = attending.filter(s => s.status === "upcoming");
   const completedHosted = hosted.filter(s => s.status === "completed").map(s => ({ ...s, role: "Host" }));
-  const completedAttending = attending.filter(s => s.status === "completed" && s.attendanceStatus !== "waitlisted").map(s => ({ ...s, role: "Sangat" }));
+  const completedAttending = attending.filter(s => s.status === "completed" && (s.attendanceStatus !== "waitlisted" || s.isPrivate === true)).map(s => ({ ...s, role: "Sangat" }));
 
   const completedMap = new Map();
   completedHosted.forEach(s => completedMap.set(s.id, s));
@@ -112,6 +112,11 @@ export default function DashboardView({ user, profile, nav, notify }) {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <strong style={{ color: C.cream, fontSize: 15 }}>{s.title}</strong>
+                    {s.isPrivate && (
+                      <span style={{ background: "rgba(224,107,16,0.15)", color: C.saffron, border: `1px solid ${C.saffron}`, fontSize: 11, fontWeight: "bold", padding: "3px 10px", borderRadius: 20, fontFamily: "sans-serif" }}>
+                        🔒 Private
+                      </span>
+                    )}
                     <span style={{ background: statusBg, color: statusColor, fontSize: 11, fontWeight: "bold", padding: "3px 10px", borderRadius: 20, fontFamily: "sans-serif" }}>
                       {statusText}
                     </span>
@@ -167,6 +172,11 @@ export default function DashboardView({ user, profile, nav, notify }) {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                     <strong style={{ color: "#c0a878", fontSize: 15 }}>{s.title}</strong>
+                    {s.isPrivate && (
+                      <span style={{ background: "rgba(224,107,16,0.15)", color: C.saffron, border: `1px solid ${C.saffron}`, fontSize: 11, fontWeight: "bold", padding: "3px 10px", borderRadius: 20, fontFamily: "sans-serif" }}>
+                        🔒 Private
+                      </span>
+                    )}
                     <span style={{ background: roleBg, color: roleColor, fontSize: 11, fontWeight: "bold", padding: "3px 10px", borderRadius: 20, fontFamily: "sans-serif" }}>
                       {s.role}
                     </span>
