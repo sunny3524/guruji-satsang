@@ -23,7 +23,8 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
     time: "",
     maxAttendees: 100,
     description: "",
-    isPrivate: false
+    isPrivate: false,
+    hideAddressUntilApproved: false
   });
   const [chosenSv, setChosenSv] = useState([]);
   const [showSevaPanel, setShowSevaPanel] = useState(() => {
@@ -151,6 +152,7 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
         organizerEmail: user.email,
         organizerPhone: profile?.phone || "",
         isPrivate: !!f.isPrivate,
+        hideAddressUntilApproved: !!f.hideAddressUntilApproved,
       }, user.uid);
       onRefresh();
       if (f.isPrivate) {
@@ -299,6 +301,31 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
             </div>
           </button>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 20, background: "rgba(255,255,255,0.02)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 20px" }}>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", userSelect: "none" }}>
+          <input
+            type="checkbox"
+            checked={!!f.hideAddressUntilApproved}
+            onChange={(e) => setF(p => ({ ...p, hideAddressUntilApproved: e.target.checked }))}
+            style={{
+              marginTop: 4,
+              accentColor: C.gold,
+              cursor: "pointer",
+              width: 16,
+              height: 16
+            }}
+          />
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: C.cream, marginBottom: 4 }}>
+              🔒 Hide Street Address Until Approved
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
+              If checked, the street address will be blurred for pending, waitlisted, and non-registered devotees. Only approved attendees, hosts, and admins can see the full address. An approximate map location (~500m area) will be displayed. If unchecked, the full address is visible to everyone.
+            </div>
+          </div>
+        </label>
       </div>
 
       <div style={{ marginTop: 26 }}>

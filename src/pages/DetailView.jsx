@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase/config";
 import {
@@ -14,6 +14,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
   const [s, setS] = useState(null);
   const [attendees, setAt] = useState([]);
   const [myAtt, setMyAtt] = useState(null);
+  const [showAddressTooltip, setShowAddressTooltip] = useState(false);
   const [selectedGuests, setSelectedGuests] = useState([]);
   const [sevaMapping, setSevaMapping] = useState({});
   const [busy, setBusy] = useState(false);
@@ -44,6 +45,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
   const left = s.maxAttendees - (s.attendeeCount || 0);
   const isHost = s && user && s.organizerUid === user.uid;
   const isAdmin = profile?.role === "admin";
+  const shouldHideAddress = s.hideAddressUntilApproved && !isHost && !isAdmin && myAtt?.status !== "confirmed";
 
   const handleToggleVisibility = async () => {
     const nextPrivate = !s.isPrivate;
@@ -484,7 +486,62 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
           <span>{fmtDate(s.date)} · {fmtTime(s.time)}</span>
         </div>
         <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 10px" }}>{s.title}</h2>
-        <div style={{ fontSize: 14, color: C.muted, marginBottom: 14 }}>📍 {s.addressLine1 || s.address}, {s.city} {s.postcode}</div>
+        <div style={{ fontSize: 14, color: C.muted, marginBottom: 14, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span>📍 </span>
+          {shouldHideAddress ? (
+            <>
+              <span style={{ position: "relative", display: "inline-block" }}>
+                <span 
+                  onClick={() => setShowAddressTooltip(!showAddressTooltip)}
+                  onMouseEnter={() => setShowAddressTooltip(true)}
+                  onMouseLeave={() => setShowAddressTooltip(false)}
+                  style={{ 
+                    filter: "blur(5px)", 
+                    userSelect: "none", 
+                    cursor: "help", 
+                    background: "rgba(255,255,255,0.08)", 
+                    padding: "2px 8px", 
+                    borderRadius: 4,
+                    color: C.muted,
+                    fontSize: 13,
+                    transition: "background 0.2s"
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+                  onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+                >
+                  Street Address
+                </span>
+                {showAddressTooltip && (
+                  <div style={{
+                    position: "absolute",
+                    bottom: "135%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: C.card,
+                    border: `1px solid ${C.gold}`,
+                    color: C.cream,
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    whiteSpace: "normal",
+                    width: 250,
+                    zIndex: 999,
+                    boxShadow: "0 6px 20px rgba(0,0,0,0.6)",
+                    textAlign: "center",
+                    textTransform: "none",
+                    letterSpacing: "normal"
+                  }}>
+                    Full address is only visible after your attendance request is approved. 🙏
+                  </div>
+                )}
+              </span>
+              <span>, {s.city} {s.postcode}</span>
+            </>
+          ) : (
+            <span>{s.addressLine1 || s.address}, {s.city} {s.postcode}</span>
+          )}
+        </div>
         {s.description && <p style={{ fontSize: 15, color: "#c0a060", lineHeight: 1.8, marginBottom: 22 }}>{s.description}</p>}
         <div style={{ display: "flex", gap: 28, marginBottom: 22, flexWrap: "wrap" }}>
           {[["Attending", `${s.attendeeCount || 0}/${s.maxAttendees}`, false], ["Spots Left", left, left < 20], ["Seva Roles", Object.keys(s.sevas || {}).length, false]].map(([l, v, h]) => (
@@ -500,6 +557,16 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
           {s.organizerPhone && <> · {s.organizerPhone}</>}
         </div>}
       </div>
+
+      {/* Interactive Map Section */}
+      {s.latitude && s.longitude && (
+        <SatsangMapDetail 
+          lat={s.latitude} 
+          lng={s.longitude} 
+          shouldHideAddress={shouldHideAddress} 
+          addressStr={s.addressLine1 || s.address}
+        />
+      )}
 
       {/* Attendance Form */}
       {!isHost && (
@@ -1153,6 +1220,86 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
               </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SatsangMapDetail({ lat, lng, shouldHideAddress, addressStr }) {
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    if (!window.L || !mapContainerRef.current) return;
+
+    if (mapRef.current) {
+      mapRef.current.remove();
+    }
+
+    // Offset slightly if hidden so center is not exactly on the location
+    const centerLat = shouldHideAddress ? lat + 0.0007 * (Math.sin(lat * 1000) || 0.5) : lat;
+    const centerLng = shouldHideAddress ? lng + 0.0007 * (Math.cos(lng * 1000) || -0.5) : lng;
+
+    const map = window.L.map(mapContainerRef.current, {
+      center: [centerLat, centerLng],
+      zoom: shouldHideAddress ? 14 : 16,
+      zoomControl: true,
+      scrollWheelZoom: false
+    });
+
+    mapRef.current = map;
+
+    window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" style="color: #d4972a;">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    if (shouldHideAddress) {
+      window.L.circle([centerLat, centerLng], {
+        color: "#e06b10",
+        fillColor: "#e06b10",
+        fillOpacity: 0.15,
+        radius: 500,
+        weight: 1
+      }).addTo(map);
+    } else {
+      const satsangIcon = window.L.divIcon({
+        className: "custom-satsang-marker",
+        html: `<div style="background: #e06b10; border: 2px solid #270e03; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px #e06b10; font-size: 10px;">🌹</div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+      window.L.marker([lat, lng], { icon: satsangIcon }).addTo(map)
+        .bindPopup(`<strong style="color: #d4972a;">Satsang Location</strong><br/><span style="font-size:12px;">${addressStr}</span>`);
+    }
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [lat, lng, shouldHideAddress, addressStr]);
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24, marginBottom: 32 }}>
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: C.cream, margin: "0 0 12px" }}>
+        {shouldHideAddress ? "📍 Approximate Area (approx. 500m radius)" : "📍 Satsang Location"}
+      </h3>
+      <div 
+        ref={mapContainerRef} 
+        style={{ 
+          height: 250, 
+          borderRadius: 12, 
+          border: `1px solid ${C.border}`,
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 1
+        }} 
+      />
+      {shouldHideAddress && (
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>ℹ️</span> Full address and precise pin will be shown after your registration is approved.
         </div>
       )}
     </div>
