@@ -2059,5 +2059,307 @@ exports.getSangatPresence = region.https.onCall(async (data, context) => {
   }
 });
 
+// ─── User-Initiated WhatsApp Login Dictionary & Endpoints ────────────────────
+
+const LOGIN_WORDS = [
+  "apple", "banana", "cherry", "grape", "orange", "lemon", "peach", "plum", "berry", "melon",
+  "river", "forest", "mountain", "valley", "ocean", "lake", "pond", "stream", "brook", "beach",
+  "tree", "flower", "leaf", "grass", "branch", "root", "seed", "bloom", "rose", "lily",
+  "cloud", "rain", "snow", "wind", "storm", "frost", "mist", "fog", "hail", "gale",
+  "star", "moon", "sun", "sky", "space", "orbit", "comet", "planet", "solar", "lunar",
+  "bird", "eagle", "hawk", "owl", "dove", "swan", "duck", "goose", "robin", "lark",
+  "lion", "tiger", "bear", "wolf", "fox", "deer", "hare", "rabbit", "horse", "pony",
+  "camel", "sheep", "goat", "koala", "panda", "otter", "seal", "whale", "dolphin",
+  "house", "garden", "bridge", "tower", "castle", "temple", "palace", "cabin", "cottage", "barn",
+  "street", "road", "path", "trail", "lane", "track", "gate", "door", "window", "roof",
+  "table", "chair", "desk", "bench", "shelf", "couch", "bed", "lamp", "clock", "watch",
+  "gold", "silver", "bronze", "copper", "iron", "steel", "metal", "stone", "rock", "sand",
+  "clay", "glass", "wood", "paper", "book", "page", "pen", "pencil", "ink", "brush",
+  "coat", "hat", "shoe", "boot", "glove", "scarf", "belt", "ring", "crown", "shield",
+  "ship", "boat", "canoe", "raft", "sail", "mast", "anchor", "wheel", "engine", "motor",
+  "bread", "milk", "honey", "cheese", "butter", "flour", "grain", "wheat", "rice", "corn",
+  "sweet", "salt", "sugar", "spice", "fruit", "juice", "water", "tea", "coffee", "cacao",
+  "happy", "bright", "sunny", "clear", "peace", "calm", "quiet", "silent", "gentle", "kind",
+  "brave", "strong", "swift", "smart", "wise", "noble", "grand", "great", "proud", "light",
+  "paint", "color", "shade", "green", "blue", "yellow", "amber", "white", "black", "brown",
+  "rose", "daisy", "tulip", "lotus", "maple", "pine", "cedar", "birch", "willow", "palm",
+  "brook", "creek", "fjord", "canyon", "dune", "cliff", "hill", "peak", "summit", "ridge",
+  "flame", "spark", "ember", "glow", "shine", "beam", "ray", "flash", "glare", "blaze",
+  "bell", "drum", "horn", "pipe", "flute", "harp", "lute", "song", "tune", "chord",
+  "kite", "balloon", "bubble", "feather", "shadow", "mirror", "lens", "gem",
+  "ruby", "pearl", "opal", "coral", "shell", "snail", "fish", "trout", "salmon", "crab",
+  "frog", "toad", "newt", "lizard", "turtle", "squirrel", "badger", "beaver", "bison", "moose",
+  "crane", "heron", "stork", "falcon", "sparrow", "finch", "canary", "parrot", "toucan", "macaw"
+];
+
+function generateLoginCode() {
+  const indices = [];
+  while (indices.length < 3) {
+    const idx = Math.floor(Math.random() * LOGIN_WORDS.length);
+    if (!indices.includes(idx)) {
+      indices.push(idx);
+    }
+  }
+  return indices.map(idx => LOGIN_WORDS[idx]).join(" ");
+}
+
+// Helper to normalize phone numbers consistently
+function normalizePhoneNumber(phone) {
+  if (!phone) return "";
+  let cleaned = phone.trim().replace(/[^\d+]/g, "");
+  if (cleaned && !cleaned.startsWith("+")) {
+    cleaned = "+" + cleaned;
+  }
+  return cleaned;
+}
+
+// ── Request WhatsApp Login Words Callable ─────────────────────────────────────
+exports.requestWhatsAppLoginWords = region.https.onCall(async (data) => {
+  const { phone } = data || {};
+  if (!phone) {
+    throw new functions.https.HttpsError("invalid-argument", "Phone number is required");
+  }
+
+  const normalized = normalizePhoneNumber(phone);
+
+  // Check if phone number is registered
+  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  if (usersSnap.empty) {
+    throw new functions.https.HttpsError("not-found", "This phone number is not registered. Redirecting to registration... 🙏");
+  }
+
+  const userDoc = usersSnap.docs[0];
+  const uid = userDoc.id;
+
+  // Generate 3-word code
+  const code = generateLoginCode();
+
+  // Save secure login attempt to Firestore
+  const attemptRef = db.collection("login_attempts").doc(normalized);
+  await attemptRef.set({
+    phone: normalized,
+    uid: uid,
+    code: code,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 5 * 60 * 1000)), // 5 minutes validity
+    status: "pending",
+    token: null,
+    error: null
+  });
+
+  const ourNumber = "+447732241682"; // Dedicated WhatsApp Business number
+
+  return {
+    success: true,
+    code: code,
+    ourNumber: ourNumber
+  };
+});
+
+// ── WhatsApp Webhook (Meta API) ──────────────────────────────────────────────
+exports.whatsappWebhook = functions.region("europe-west2").https.onRequest(async (req, res) => {
+  // Webhook verification (GET request)
+  if (req.method === "GET") {
+    const verifyToken = functions.config().whatsapp?.verify_token || process.env.WHATSAPP_VERIFY_TOKEN || "guruji_verify_token_2026";
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+
+    if (mode === "subscribe" && token === verifyToken) {
+      console.log("[WhatsApp Webhook] Verification successful!");
+      return res.status(200).send(challenge);
+    } else {
+      console.warn("[WhatsApp Webhook] Verification failed due to token mismatch.");
+      return res.status(403).send("Forbidden");
+    }
+  }
+
+  // Incoming webhook payload (POST request)
+  if (req.method === "POST") {
+    try {
+      const entry = req.body.entry;
+      if (!entry || !Array.isArray(entry) || entry.length === 0) {
+        return res.status(200).send("No entries");
+      }
+
+      for (const item of entry) {
+        const changes = item.changes;
+        if (!changes || !Array.isArray(changes)) continue;
+
+        for (const change of changes) {
+          const value = change.value;
+          if (!value || !value.messages || !Array.isArray(value.messages)) continue;
+
+          const phoneNumberId = value.metadata ? value.metadata.phone_number_id : null;
+
+          for (const message of value.messages) {
+            // We only process incoming text messages
+            if (message.type !== "text" || !message.text || !message.text.body) continue;
+
+            const rawSenderPhone = message.from; // e.g. "447732241682"
+            const msgBody = message.text.body.trim();
+
+            await handleIncomingWhatsAppMessage(rawSenderPhone, msgBody, phoneNumberId);
+          }
+        }
+      }
+      return res.status(200).send("EVENT_RECEIVED");
+    } catch (err) {
+      console.error("[WhatsApp Webhook] Processing error:", err);
+      return res.status(500).send("INTERNAL_SERVER_ERROR");
+    }
+  }
+
+  return res.status(405).send("Method Not Allowed");
+});
+
+// Helper to handle parsing and processing of incoming WhatsApp messages
+async function handleIncomingWhatsAppMessage(rawSenderPhone, msgBody, phoneNumberId) {
+  const senderPhone = normalizePhoneNumber(rawSenderPhone);
+  console.log(`[WhatsApp Webhook] Message received from ${senderPhone}: "${msgBody}"`);
+
+  // Parse: "Login: word1 word2 word3" or "Login word1 word2 word3" (with or without colon)
+  const match = msgBody.match(/^(?:Login:?)\s*([a-zA-Z]+)\s+([a-zA-Z]+)\s+([a-zA-Z]+)$/i);
+
+  if (!match) {
+    console.log(`[WhatsApp Webhook] Message from ${senderPhone} does not match Login pattern.`);
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      rawSenderPhone,
+      "🙏 Jai Guruji! To log into your Guruji Satsang account, please send the exact 3-word code shown on your screen in this format:\n\n*Login: word1 word2 word3*"
+    );
+    return;
+  }
+
+  const w1 = match[1].toLowerCase();
+  const w2 = match[2].toLowerCase();
+  const w3 = match[3].toLowerCase();
+  const receivedCode = `${w1} ${w2} ${w3}`;
+
+  // Fetch active attempt for this phone number
+  const attemptRef = db.collection("login_attempts").doc(senderPhone);
+  const attemptSnap = await attemptRef.get();
+
+  if (!attemptSnap.exists) {
+    console.log(`[WhatsApp Webhook] No active login attempt found for ${senderPhone}.`);
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      rawSenderPhone,
+      `❌ Login Failed. We couldn't find any active login request for your number (${senderPhone}). Please initiate a login request on the app first, then send the code. 🙏`
+    );
+    return;
+  }
+
+  const attemptData = attemptSnap.data();
+
+  // 1. Expiration check (5 minutes)
+  if (attemptData.expiresAt.toDate().getTime() < Date.now()) {
+    console.log(`[WhatsApp Webhook] Login attempt for ${senderPhone} has expired.`);
+    await attemptRef.update({
+      status: "failed",
+      error: "The login code has expired."
+    });
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      rawSenderPhone,
+      "❌ Login Failed. The code you sent has expired (5-minute limit). Please return to the app, request a new code, and try again. 🙏"
+    );
+    return;
+  }
+
+  // 2. Already processed check
+  if (attemptData.status !== "pending") {
+    console.log(`[WhatsApp Webhook] Attempt for ${senderPhone} is already processed: ${attemptData.status}`);
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      rawSenderPhone,
+      "ℹ️ This login request has already been processed. Please return to the app or start a new request."
+    );
+    return;
+  }
+
+  // 3. Compare code
+  const expectedCode = attemptData.code.toLowerCase();
+  if (receivedCode !== expectedCode) {
+    console.log(`[WhatsApp Webhook] Code mismatch for ${senderPhone}. Expected: "${expectedCode}", Received: "${receivedCode}"`);
+    await attemptRef.update({
+      status: "failed",
+      error: `Code mismatch. Expected "${expectedCode}", received "${receivedCode}".`
+    });
+
+    // Provide detailed typo feedback
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      rawSenderPhone,
+      `❌ Login Failed.\n\nWe received: "${msgBody}"\nWe expected: "Login: ${attemptData.code}"\n\nPlease check the spelling of your 3 words and try again! 🙏`
+    );
+    return;
+  }
+
+  // Success! Generate custom auth token and update status
+  try {
+    const customToken = await admin.auth().createCustomToken(attemptData.uid);
+    await attemptRef.update({
+      status: "approved",
+      token: customToken
+    });
+
+    console.log(`[WhatsApp Webhook] Successfully authenticated ${senderPhone} and updated token.`);
+
+    // Reply with confirmation
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      rawSenderPhone,
+      `✅ Jai Guruji! Login successful. Your browser screen has been unlocked. Please return to the app to continue. 🙏`
+    );
+  } catch (err) {
+    console.error(`[WhatsApp Webhook] Custom token generation failed for ${senderPhone}:`, err);
+    await attemptRef.update({
+      status: "failed",
+      error: "Internal authentication error."
+    });
+    await sendWhatsAppMessage(
+      phoneNumberId,
+      rawSenderPhone,
+      "❌ System Error. We encountered an issue generating your login session. Please contact the admin at admin.guruji.satsangs@gmail.com. 🙏"
+    );
+  }
+}
+
+// Outbound Message sender using Meta Graph API
+async function sendWhatsAppMessage(phoneNumberId, toPhone, text) {
+  const accessToken = functions.config().whatsapp?.access_token || process.env.WHATSAPP_ACCESS_TOKEN;
+  const defaultPhoneId = functions.config().whatsapp?.phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const phoneId = phoneNumberId || defaultPhoneId;
+
+  if (!accessToken || !phoneId) {
+    console.error("Missing WhatsApp Meta credentials (access_token or phone_number_id). Message skipped:", text);
+    return;
+  }
+
+  const url = `https://graph.facebook.com/v20.0/${phoneId}/messages`;
+  const body = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: toPhone,
+    type: "text",
+    text: {
+      preview_url: true,
+      body: text
+    }
+  };
+
+  try {
+    const res = await postRequest(
+      url,
+      { "Authorization": `Bearer ${accessToken}` },
+      body
+    );
+    console.log(`[WhatsApp Outbound] Successfully sent message to ${toPhone}. Response: ${res}`);
+  } catch (err) {
+    console.error(`[WhatsApp Outbound] Failed to send message to ${toPhone}:`, err);
+  }
+}
+
 
 

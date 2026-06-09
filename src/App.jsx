@@ -84,7 +84,8 @@ function AppInner() {
         return;
       }
       const pathPart = hash.startsWith("#/") ? hash.substring(2) : hash.substring(1);
-      const parts = pathPart.split("/");
+      const [cleanPath] = pathPart.split("?");
+      const parts = cleanPath.split("/");
       const page = parts[0] || "home";
       const param = parts[1] || null;
 
@@ -460,11 +461,79 @@ function AppInner() {
 
       {view !== "home" && view !== "guidelines" && <DivineVachanBanner view={view} />}
 
-      <footer style={{ borderTop: `1px solid ${C.border}`, padding: "28px 32px", textAlign: "center" }}>
-        <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.22em", textTransform: "uppercase", marginBottom: 8, fontFamily: "sans-serif" }}>
+      <footer style={{
+        borderTop: `1px solid ${C.border}`,
+        padding: "36px 32px",
+        textAlign: "center",
+        background: "rgba(39,14,3,0.3)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        alignItems: "center"
+      }}>
+        <div style={{ fontSize: 10, color: C.gold, letterSpacing: "0.22em", textTransform: "uppercase", fontFamily: "var(--font-headings)", fontWeight: "bold" }}>
           OM NAMAH SHIVAY SHIVJI SADA SAHAY · OM NAMAH SHIVAY GURUJI SADA SAHAY
         </div>
-        <div style={{ fontSize: 13, color: C.muted }}>Guruji Satsang · Built with devotion & seva</div>
+        
+        <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 24,
+          fontSize: 14,
+          marginTop: 8,
+          marginBottom: 4
+        }}>
+          <span style={{ color: C.muted, fontWeight: "500" }}>Contact Us:</span>
+          
+          <a
+            href="https://wa.me/447424772861"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: C.gold,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "color 0.2s ease",
+              fontWeight: "600"
+            }}
+            onMouseOver={e => e.currentTarget.style.color = C.cream}
+            onMouseOut={e => e.currentTarget.style.color = C.gold}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.73-1.45L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.635-1.023-5.11-2.884-6.974C16.59 1.91 14.118.887 11.488.887c-5.44 0-9.866 4.418-9.87 9.857-.001 1.737.476 3.427 1.38 4.931l-.988 3.616 3.738-.979z" />
+            </svg>
+            +44 7424 772861
+          </a>
+
+          <a
+            href="mailto:admin.guruji.satsangs@gmail.com"
+            style={{
+              color: C.gold,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "color 0.2s ease",
+              fontWeight: "600"
+            }}
+            onMouseOver={e => e.currentTarget.style.color = C.cream}
+            onMouseOut={e => e.currentTarget.style.color = C.gold}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            admin.guruji.satsangs@gmail.com
+          </a>
+        </div>
+        
+        <div style={{ fontSize: 13, color: C.muted }}>
+          Guruji Satsang · Built with devotion & seva
+        </div>
       </footer>
     </div>
   );

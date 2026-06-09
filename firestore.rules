@@ -67,5 +67,10 @@ service cloud.firestore {
     match /{path=**}/attendees/{userId} {
       allow read: if request.auth != null && (resource.data.userUid == request.auth.uid || isAdmin());
     }
+    // ── Login Attempts collection (for WhatsApp login polling) ────────────────
+    match /login_attempts/{phone} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions can write/update
+    }
   }
 }
