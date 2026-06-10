@@ -53,6 +53,8 @@ export default function LoginView({ nav, notify, ipCountry }) {
     };
 
     const token = getQueryParam("token");
+    const magic = getQueryParam("magic");
+
     if (token) {
       setBusy(true);
       signInWithCustomToken(auth, token)
@@ -64,6 +66,28 @@ export default function LoginView({ nav, notify, ipCountry }) {
         .catch((err) => {
           notify("Invalid or expired login link.", "err");
           console.error("Custom token sign in failed:", err);
+        })
+        .finally(() => {
+          setBusy(false);
+        });
+    } else if (magic) {
+      setBusy(true);
+      const redeemMagic = httpsCallable(functions, "redeemMagicCode");
+      redeemMagic({ magicCode: magic })
+        .then((res) => {
+          if (res.data.success && res.data.token) {
+            return signInWithCustomToken(auth, res.data.token);
+          } else {
+            throw new Error("Invalid or expired login link.");
+          }
+        })
+        .then(() => {
+          notify("Jai Guruji! Successfully logged in via magic link 🙏");
+          window.location.hash = "#/find";
+        })
+        .catch((err) => {
+          notify("Invalid or expired login link.", "err");
+          console.error("Magic link redemption failed:", err);
         })
         .finally(() => {
           setBusy(false);
@@ -532,7 +556,7 @@ export default function LoginView({ nav, notify, ipCountry }) {
                   {hasWhatsAppDevice === "yes" && !manualInstructionsOpen && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center", textAlign: "center" }}>
                       <p style={{ fontSize: 13, color: C.cream, lineHeight: 1.5 }}>
-                        Click the button below to open WhatsApp with your prefilled login message. Just hit **send** and then return to this page!
+                        Click the button below to open WhatsApp with your prefilled login message. Hit **send**, and then you can either return to this tab (which will automatically unlock) or tap the magic link sent back in the WhatsApp reply to log in!
                       </p>
                       
                       <a

@@ -2298,19 +2298,26 @@ async function handleIncomingWhatsAppMessage(rawSenderPhone, msgBody, phoneNumbe
 
   // Success! Generate custom auth token and update status
   try {
-    const customToken = await admin.auth().createCustomToken(attemptData.uid);
+    const customTokenPolling = await admin.auth().createCustomToken(attemptData.uid);
+    const customTokenLink = await admin.auth().createCustomToken(attemptData.uid);
+    const magicCode = generateMagicCode();
+    
     await attemptRef.update({
       status: "approved",
-      token: customToken
+      token: customTokenPolling,
+      magicCode: magicCode,
+      customTokenLink: customTokenLink
     });
 
-    console.log(`[WhatsApp Webhook] Successfully authenticated ${senderPhone} and updated token.`);
+    console.log(`[WhatsApp Webhook] Successfully authenticated ${senderPhone} (magicCode: ${magicCode}).`);
 
-    // Reply with confirmation
+    const magicLink = `https://gurujisatsangs.com/#/login?magic=${magicCode}`;
+
+    // Reply with confirmation and magic link on a clean line (no trailing punctuation to break the link)
     await sendWhatsAppMessage(
       phoneNumberId,
       rawSenderPhone,
-      `✅ Jai Guruji! Login successful. Your browser screen has been unlocked. Please return to the app to continue. 🙏`
+      `✅ Jai Guruji! Login successful. Your browser screen has been unlocked.\n\nIf you are on a mobile device, tap the link below to enter the app directly:\n${magicLink}\n\nShukrana Guruji! 🙏`
     );
   } catch (err) {
     console.error(`[WhatsApp Webhook] Custom token generation failed for ${senderPhone}:`, err);
@@ -2360,6 +2367,64 @@ async function sendWhatsAppMessage(phoneNumberId, toPhone, text) {
     console.error(`[WhatsApp Outbound] Failed to send message to ${toPhone}:`, err);
   }
 }
+
+function generateMagicCode() {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 24; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// ── Redeem Magic Code Callable ────────────────────────────────────────────────
+exports.redeemMagicCode = region.https.onCall(async (data) => {
+  const { magicCode } = data || {};
+  if (!magicCode) {
+    throw new functions.https.HttpsError("invalid-argument", "Magic code is required");
+  }
+
+  // Look up in login_attempts collection for matching magicCode
+  const querySnap = await db.collection("login_attempts")
+    .where("magicCode", "==", magicCode.trim())
+    .limit(1)
+    .get();
+
+  if (querySnap.empty) {
+    throw new functions.https.HttpsError("not-found", "Invalid or expired login link.");
+  }
+
+  const attemptDoc = querySnap.docs[0];
+  const attemptData = attemptDoc.data();
+
+  // Expiration check
+  if (attemptData.expiresAt.toDate().getTime() < Date.now()) {
+    // Clean up expired doc
+    await attemptDoc.ref.delete().catch(() => {});
+    throw new functions.https.HttpsError("deadline-exceeded", "This login link has expired.");
+  }
+
+  if (attemptData.status !== "approved" || !attemptData.customTokenLink) {
+    throw new functions.https.HttpsError("failed-precondition", "This login request is not approved yet.");
+  }
+
+  const customToken = attemptData.customTokenLink;
+
+  // Enforce single-use: clear magicCode and customTokenLink from document
+  await attemptDoc.ref.update({
+    magicCode: admin.firestore.FieldValue.delete(),
+    customTokenLink: admin.firestore.FieldValue.delete()
+  }).catch((err) => {
+    console.error("Failed to delete magicCode:", err);
+  });
+
+  console.log(`[Magic Code Redemptions] Successfully redeemed magic code for phone ${attemptData.phone}`);
+
+  return {
+    success: true,
+    token: customToken
+  };
+});
 
 
 
