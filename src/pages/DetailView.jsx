@@ -9,6 +9,11 @@ import Label from "../components/ui/Label";
 import Btn from "../components/ui/Btn";
 import Page from "../components/ui/Page";
 import Empty from "../components/ui/Empty";
+import { toPng } from "html-to-image";
+import { QRCodeCanvas } from "qrcode.react";
+import guruji01 from "../assets/images/guruji-01.png";
+import inviteBg from "../assets/images/invite_bg.png";
+import gurujiPortrait from "../assets/images/guruji_portrait.png";
 
 export default function DetailView({ satsangId, user, profile, nav, notify, onRefresh }) {
   const [s, setS] = useState(null);
@@ -21,6 +26,116 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
   const [activeTab, setActiveTab] = useState("attendance");
   const [showGuestsPanel, setShowGuestsPanel] = useState(false);
   const [showSevaPanel, setShowSevaPanel] = useState(false);
+
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [invitePreset, setInvitePreset] = useState(0);
+  const [customInviteText, setCustomInviteText] = useState("");
+  const [titlePreset, setTitlePreset] = useState(2); // Default to existing Satsang title
+  const [customTitleText, setCustomTitleText] = useState("");
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+  const inviteRef = useRef(null);
+
+  const INVITE_PRESETS = [
+    "With the blessings of Guruji Maharaj, we request the pleasure of your company for Satsang, Chai, and Langar Prasad.",
+    "Jai Guruji. We warmly invite you to join us for our family Satsang and receive Guruji's blessings and Langar Prasad.",
+    "By the grace of Guruji, we request your presence in our home for a divine evening of Satsang and Langar Prasad."
+  ];
+
+  const currentInviteText = invitePreset === 99 ? customInviteText : INVITE_PRESETS[invitePreset];
+
+  const TITLE_PRESETS = [
+    "Guruji's Satsang",
+    "Guruji Ka Satsang",
+    s?.title || "Satsang"
+  ];
+  const currentTitleText = titlePreset === 99 ? customTitleText : (TITLE_PRESETS[titlePreset] || "Satsang");
+
+  const getResponsiveMessageFontSize = (text) => {
+    const len = text ? text.length : 0;
+    if (len < 60) return 19;
+    if (len < 100) return 16;
+    if (len < 140) return 13.5;
+    return 12;
+  };
+
+  const getResponsiveTitleFontSize = (text) => {
+    const len = text ? text.length : 0;
+    if (len < 15) return 20;
+    if (len < 25) return 17;
+    return 14;
+  };
+
+  const handleDownloadInvite = async () => {
+    if (!inviteRef.current) return;
+    setGeneratingImage(true);
+    try {
+      // First render (iOS/Safari warm-up render to load/cache fonts/images)
+      await toPng(inviteRef.current, { cacheBust: true, pixelRatio: 2 });
+      await new Promise(r => setTimeout(r, 150));
+      
+      // Actual final render
+      const dataUrl = await toPng(inviteRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+      });
+
+      // Synchronous base64 to Blob conversion (more reliable than fetch(dataUrl))
+      const byteString = atob(dataUrl.split(',')[1]);
+      const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const file = new File([blob], `Satsang_Invite_${s.date.replace(/[^a-zA-Z0-9]/g, "_")}.png`, { type: "image/png" });
+
+      // Try to share via native share sheet first (supported on mobile safari/chrome)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: "Satsang Invite",
+            text: "Scan the QR code to register. Jai Guruji! 🙏"
+          });
+          notify("Choose 'Save Image' in the menu to save directly to your Photos library! 📸");
+          setGeneratingImage(false);
+          return;
+        } catch (shareErr) {
+          console.warn("Native share failed, using fallback:", shareErr);
+        }
+      }
+
+      // Check if user is on mobile
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        // Show long-press modal on mobile if share sheet failed/is not supported
+        // This is the absolute best way to ensure saving directly to Photos/Image Library instead of Files app.
+        setGeneratedImageUrl(dataUrl);
+        notify("Long-press the image to save directly to your Photos library! 📸");
+      } else {
+        // Desktop fallback: direct browser download
+        const link = document.createElement("a");
+        link.download = `Satsang_Invite_${s.date.replace(/[^a-zA-Z0-9]/g, "_")}.png`;
+        link.href = dataUrl;
+        link.click();
+        notify("Invite downloaded! 🙏");
+      }
+    } catch (err) {
+      console.error("Failed to generate invite image:", err);
+      notify("Failed to save invite image. Please try again.", "err");
+    }
+    setGeneratingImage(false);
+  };
+
+  const invitePageUrl = `https://gurujisatsangs.com/#/satsang/${satsangId}`;
+
+  const handleWhatsAppShare = () => {
+    const textMessage = `🙏 Jai Guruji! You are warmly invited to attend our upcoming Satsang. \n\nDetails:\n📅 Date: ${s.date}\n⏰ Time: ${s.time}\n📍 Venue: ${s.addressLine1 || s.address}, ${s.city}\n\nPlease click the link below to register and confirm your attendance:\n${invitePageUrl}\n\nShukrana Guruji! 🙏`;
+    const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textMessage)}`;
+    window.open(shareUrl, "_blank");
+  };
 
   useEffect(() => {
     if (!satsangId) return;
@@ -833,26 +948,13 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
         <div style={{ marginTop: 40, borderTop: `1px solid ${C.border}`, paddingTop: 30 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <h3 style={{ fontSize: 20, fontWeight: 700, color: C.cream, margin: 0 }}>Sangat Attendance & Seva Management</h3>
-            {s.status === "upcoming" && (
+            <div style={{ display: "flex", gap: 12 }}>
               <button
-                onClick={async () => {
-                  if (window.confirm("Are you sure you want to cancel this Satsang? Approved attendees will be notified automatically via email. 🙏")) {
-                    setBusy(true);
-                    try {
-                      await cancelSatsang(satsangId);
-                      notify("Satsang has been cancelled. 🙏");
-                      if (onRefresh) onRefresh();
-                    } catch (e) {
-                      notify(e.message, "err");
-                    }
-                    setBusy(false);
-                  }
-                }}
-                disabled={busy}
+                onClick={() => setShowInviteModal(true)}
                 style={{
-                  background: "none",
-                  border: `1px solid ${C.saffron}`,
-                  color: C.saffron,
+                  background: C.gold,
+                  border: "none",
+                  color: C.bg,
                   borderRadius: 8,
                   padding: "8px 16px",
                   fontSize: 13,
@@ -861,9 +963,40 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                   transition: "all 0.2s"
                 }}
               >
-                ⚠️ Cancel Satsang
+                ✨ Generate Invitation Card
               </button>
-            )}
+              {s.status === "upcoming" && (
+                <button
+                  onClick={async () => {
+                    if (window.confirm("Are you sure you want to cancel this Satsang? Approved attendees will be notified automatically via email. 🙏")) {
+                      setBusy(true);
+                      try {
+                        await cancelSatsang(satsangId);
+                        notify("Satsang has been cancelled. 🙏");
+                        if (onRefresh) onRefresh();
+                      } catch (e) {
+                        notify(e.message, "err");
+                      }
+                      setBusy(false);
+                    }
+                  }}
+                  disabled={busy}
+                  style={{
+                    background: "none",
+                    border: `1px solid ${C.saffron}`,
+                    color: C.saffron,
+                    borderRadius: 8,
+                    padding: "8px 16px",
+                    fontSize: 13,
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  ⚠️ Cancel Satsang
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Segmented Tab Controls */}
@@ -1220,6 +1353,547 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {showInviteModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.85)",
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          backdropFilter: "blur(4px)"
+        }}>
+          <div style={{
+            background: C.card,
+            border: `1px solid ${C.border}`,
+            borderRadius: 16,
+            padding: 28,
+            maxWidth: 900,
+            width: "100%",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 28,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
+          }}>
+            {/* Column 1: Live Preview */}
+            <div style={{ 
+              display: "flex", 
+              flexDirection: "column", 
+              alignItems: "center", 
+              flex: "1 1 400px", 
+              justifyContent: "center",
+              width: "100%", 
+              overflow: "hidden" 
+            }}>
+              <style>{`
+                .invite-card-wrapper {
+                  transform: scale(1);
+                  transform-origin: center top;
+                  transition: all 0.3s ease;
+                }
+                @media (max-width: 500px) {
+                  .invite-card-wrapper {
+                    transform: scale(0.8);
+                    margin-bottom: -120px;
+                  }
+                }
+                @media (max-width: 400px) {
+                  .invite-card-wrapper {
+                    transform: scale(0.7);
+                    margin-bottom: -180px;
+                  }
+                }
+                @media (max-width: 350px) {
+                  .invite-card-wrapper {
+                    transform: scale(0.6);
+                    margin-bottom: -240px;
+                  }
+                }
+              `}</style>
+              <div className="invite-card-wrapper">
+                {/* The exportable invitation card */}
+                <div 
+                  ref={inviteRef}
+                  style={{
+                    width: 360,
+                    height: 640,
+                    minWidth: 360,
+                    minHeight: 640,
+                    background: "#150600",
+                    borderRadius: "16px",
+                    boxSizing: "border-box",
+                    position: "relative",
+                    overflow: "hidden",
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.6)"
+                  }}
+                >
+                  {/* Background Image (Contains pre-rendered gradient background, mandalas, Om/Ek Onkar, gold frame, and roses) */}
+                  <img 
+                    src={inviteBg} 
+                    alt="Invite Background" 
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      zIndex: 1,
+                      pointerEvents: "none"
+                    }}
+                  />
+
+                  {/* Guruji Maharaj's Portrait positioned precisely inside the ornate gold frame */}
+                  <img 
+                    src={gurujiPortrait} 
+                    alt="Guruji Maharaj" 
+                    style={{
+                      position: "absolute",
+                      left: 124,
+                      top: 137,
+                      width: 112,
+                      height: 104,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      zIndex: 2,
+                      pointerEvents: "none"
+                    }}
+                  />
+
+                  {/* Header Mantra centered between Om and Ek Onkar symbols */}
+                  <div style={{
+                    position: "absolute",
+                    left: 50,
+                    right: 50,
+                    top: 68,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    <span style={{ color: "#ffe082", fontSize: 8.5, fontWeight: "bold", letterSpacing: "0.05em", textAlign: "center", fontFamily: "'Cinzel', serif", textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}>
+                      || Om Namah Shivay Shivji Sada Sahay ||
+                    </span>
+                    <span style={{ color: "#ffe082", fontSize: 8.5, fontWeight: "bold", letterSpacing: "0.05em", textAlign: "center", fontFamily: "'Cinzel', serif", marginTop: 2, textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}>
+                      || Om Namah Shivay Guruji Sada Sahay ||
+                    </span>
+                  </div>
+
+                  {/* Event Title positioned above the first separator line */}
+                  <div style={{
+                    position: "absolute",
+                    left: 20,
+                    right: 20,
+                    top: 275,
+                    height: 40,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    <span style={{
+                      fontFamily: "'Cinzel', serif",
+                      fontSize: getResponsiveTitleFontSize(currentTitleText),
+                      color: "#ffe082",
+                      fontWeight: "bold",
+                      letterSpacing: "0.08em",
+                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+                      textAlign: "center"
+                    }}>
+                      {currentTitleText}
+                    </span>
+                  </div>
+
+                  {/* Invitation Text positioned between the first and second separator lines (narrow width to not overlap motifs) */}
+                  <div style={{
+                    position: "absolute",
+                    left: 70,
+                    right: 70,
+                    top: 325,
+                    height: 60,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    <span style={{
+                      fontFamily: "'Great Vibes', cursive",
+                      fontSize: getResponsiveMessageFontSize(currentInviteText),
+                      color: "#ffe082",
+                      textAlign: "center",
+                      lineHeight: 1.3,
+                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
+                    }}>
+                      "{currentInviteText}"
+                    </span>
+                  </div>
+
+                  {/* Date & Time positioned between the second and third separator lines */}
+                  <div style={{
+                    position: "absolute",
+                    left: 20,
+                    right: 20,
+                    top: 398,
+                    height: 65,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 3,
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
+                      📅 {s.date}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
+                      ⏰ {s.time}
+                    </div>
+                  </div>
+
+                  {/* Address positioned between the third and fourth separator lines (previously empty) */}
+                  <div style={{
+                    position: "absolute",
+                    left: 20,
+                    right: 20,
+                    top: 471,
+                    height: 20,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    <span style={{
+                      fontSize: 8.5,
+                      color: "#ffe082",
+                      fontFamily: "'Cinzel', serif",
+                      fontWeight: "bold",
+                      letterSpacing: "0.03em",
+                      textAlign: "center",
+                      whiteSpace: "nowrap",
+                      textShadow: "1px 1px 1px rgba(0,0,0,0.8)"
+                    }}>
+                      📍 {s.addressLine1 || s.address}, {s.city}
+                    </span>
+                  </div>
+
+                  {/* Shukrana Text positioned below the fourth separator line (where the address was) */}
+                  <div style={{
+                    position: "absolute",
+                    left: 20,
+                    right: 20,
+                    top: 498,
+                    height: 35,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    <span style={{
+                      fontSize: 16,
+                      color: "#ffe082",
+                      fontStyle: "italic",
+                      fontFamily: "'Great Vibes', cursive",
+                      fontWeight: "bold",
+                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+                      textAlign: "center"
+                    }}>
+                      Jai Guruji, Shukrana Guruji 🙏
+                    </span>
+                  </div>
+
+                  {/* QR Code positioned on the bottom right above the roses */}
+                  <div style={{
+                    position: "absolute",
+                    right: 24,
+                    bottom: 20,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 4,
+                    zIndex: 2
+                  }}>
+                    <div style={{
+                      background: "#ffffff",
+                      padding: 3,
+                      borderRadius: 6,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 4px 10px rgba(0,0,0,0.3)"
+                    }}>
+                      <QRCodeCanvas value={invitePageUrl} size={48} bgColor="#ffffff" fgColor="#150600" />
+                    </div>
+                    <span style={{
+                      fontSize: 6,
+                      color: "#ffe082",
+                      fontWeight: "bold",
+                      fontFamily: "var(--font-body)",
+                      letterSpacing: "0.02em",
+                      textShadow: "1px 1px 1px rgba(0,0,0,0.8)"
+                    }}>
+                      Scan me to attend
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 2: Controls */}
+            <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 20 }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px 0", color: C.cream, fontSize: 18, fontWeight: 700 }}>Customize Satsang Invitation</h3>
+                <p style={{ margin: 0, color: C.muted, fontSize: 13 }}>Tailor the invitation message for sharing with the Sangat.</p>
+              </div>
+
+              {/* Event Title Preset Select */}
+              <div>
+                <Label>Event Title</Label>
+                <select 
+                  value={titlePreset}
+                  onChange={(e) => setTitlePreset(Number(e.target.value))}
+                  style={{
+                    width: "100%",
+                    background: C.card,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    color: C.cream,
+                    fontSize: 14,
+                    fontFamily: "var(--font-body)",
+                    outline: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value={2}>Satsang Title ("{s?.title || "Satsang"}")</option>
+                  <option value={0}>Guruji's Satsang</option>
+                  <option value={1}>Guruji Ka Satsang</option>
+                  <option value={99}>Custom Title...</option>
+                </select>
+              </div>
+
+              {/* Custom Title Input */}
+              {titlePreset === 99 && (
+                <div>
+                  <Label>Custom Event Title</Label>
+                  <input
+                    type="text"
+                    value={customTitleText}
+                    onChange={(e) => setCustomTitleText(e.target.value.slice(0, 50))}
+                    placeholder="Enter custom event title..."
+                    style={{
+                      width: "100%",
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                      color: C.cream,
+                      fontSize: 14,
+                      fontFamily: "var(--font-body)",
+                      outline: "none",
+                      boxSizing: "border-box"
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Preset Select */}
+              <div>
+                <Label>Invite Message Preset</Label>
+                <select 
+                  value={invitePreset}
+                  onChange={(e) => setInvitePreset(Number(e.target.value))}
+                  style={{
+                    width: "100%",
+                    background: C.card,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    color: C.cream,
+                    fontSize: 14,
+                    fontFamily: "var(--font-body)",
+                    outline: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  <option value={0}>Option 1 (Traditional/Polite)</option>
+                  <option value={1}>Option 2 (Warm Family Invite)</option>
+                  <option value={2}>Option 3 (Divine Evening invitation)</option>
+                  <option value={99}>Custom Message...</option>
+                </select>
+              </div>
+
+              {/* Custom Text Area */}
+              {invitePreset === 99 && (
+                <div>
+                  <Label>Custom Invite Message</Label>
+                  <textarea
+                    value={customInviteText}
+                    onChange={(e) => setCustomInviteText(e.target.value.slice(0, 150))}
+                    placeholder="Type your own custom invitation text here (max 150 chars)..."
+                    rows={4}
+                    style={{
+                      width: "100%",
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                      color: C.cream,
+                      fontSize: 14,
+                      fontFamily: "var(--font-body)",
+                      outline: "none",
+                      resize: "none",
+                      boxSizing: "border-box"
+                    }}
+                  />
+                  <div style={{ textAlign: "right", fontSize: 11, color: C.muted, marginTop: 4 }}>
+                    {customInviteText.length}/150 characters
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: "auto" }}>
+                <Btn onClick={handleDownloadInvite} disabled={generatingImage} full>
+                  {generatingImage ? "Generating Flyer..." : "💾 Download Invite Image"}
+                </Btn>
+                <button
+                  onClick={handleWhatsAppShare}
+                  style={{
+                    width: "100%",
+                    background: "#25D366",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "12px",
+                    color: "#1a0800",
+                    fontWeight: "bold",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    textAlign: "center"
+                  }}
+                >
+                  💬 Share directly to WhatsApp
+                </button>
+                <button
+                  onClick={() => setShowInviteModal(false)}
+                  style={{
+                    width: "100%",
+                    background: "none",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    padding: "12px",
+                    color: C.muted,
+                    fontSize: 14,
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                >
+                  Close / Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Long-press save instruction modal for mobile device fallbacks */}
+      {generatedImageUrl && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.92)",
+          zIndex: 1100,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+          backdropFilter: "blur(8px)"
+        }}>
+          <div style={{
+            background: "linear-gradient(135deg, rgba(39, 14, 3, 0.95) 0%, rgba(26, 8, 0, 0.98) 100%)",
+            border: `2px solid ${C.gold}`,
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 340,
+            width: "100%",
+            textAlign: "center",
+            boxShadow: "0 15px 35px rgba(0,0,0,0.6)",
+            position: "relative"
+          }}>
+            <button 
+              onClick={() => setGeneratedImageUrl("")}
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                background: "rgba(255,255,255,0.08)",
+                border: "none",
+                color: C.gold,
+                borderRadius: "50%",
+                width: 28,
+                height: 28,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "bold",
+                fontSize: 14,
+                outline: "none"
+              }}
+            >
+              ✕
+            </button>
+            <h4 style={{ color: C.gold, fontSize: 18, fontWeight: 700, marginBottom: 8, fontFamily: "var(--font-headings)", letterSpacing: "0.02em" }}>
+              Save to Photos
+            </h4>
+            <p style={{ color: C.cream, fontSize: 12, lineHeight: 1.5, marginBottom: 16 }}>
+              👇 <strong>Press and hold (long-press)</strong> the card below and choose <strong>"Save Image"</strong> or <strong>"Add to Photos"</strong>.
+            </p>
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 18,
+              background: "rgba(0,0,0,0.3)",
+              padding: 10,
+              borderRadius: 10,
+              border: `1px solid rgba(212,151,42,0.15)`
+            }}>
+              <img 
+                src={generatedImageUrl} 
+                alt="Generated Satsang Invite" 
+                style={{
+                  width: "100%",
+                  maxWidth: 240,
+                  height: "auto",
+                  borderRadius: 8,
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.5)",
+                  pointerEvents: "auto"
+                }} 
+              />
+            </div>
+            <Btn onClick={() => setGeneratedImageUrl("")} full>Done</Btn>
+          </div>
         </div>
       )}
     </div>
