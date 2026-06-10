@@ -53,10 +53,10 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
 
   const getResponsiveMessageFontSize = (text) => {
     const len = text ? text.length : 0;
-    if (len < 60) return 19;
-    if (len < 100) return 16;
-    if (len < 140) return 13.5;
-    return 12;
+    if (len < 60) return 15;
+    if (len < 100) return 13;
+    if (len < 140) return 11.5;
+    return 10.5;
   };
 
   const getResponsiveTitleFontSize = (text) => {
@@ -64,6 +64,16 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
     if (len < 15) return 20;
     if (len < 25) return 17;
     return 14;
+  };
+
+  const getResponsiveAddressFontSize = (text) => {
+    const len = text ? text.length : 0;
+    if (len < 25) return 10;
+    if (len < 40) return 9;
+    if (len < 55) return 8;
+    if (len < 75) return 7;
+    if (len < 95) return 6.5;
+    return 5.5;
   };
 
   const handleDownloadInvite = async () => {
@@ -132,7 +142,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
   const invitePageUrl = `https://gurujisatsangs.com/#/satsang/${satsangId}`;
 
   const handleWhatsAppShare = () => {
-    const textMessage = `🙏 Jai Guruji! You are warmly invited to attend our upcoming Satsang. \n\nDetails:\n📅 Date: ${s.date}\n⏰ Time: ${s.time}\n📍 Venue: ${s.addressLine1 || s.address}, ${s.city}\n\nPlease click the link below to register and confirm your attendance:\n${invitePageUrl}\n\nShukrana Guruji! 🙏`;
+    const textMessage = `🙏 Jai Guruji! You are warmly invited to attend our upcoming Satsang. \n\nDetails:\n📅 Date: ${s.date}\n⏰ Time: ${s.time}\n📍 Venue: ${s.addressLine1 || s.address}, ${s.city}${s.postcode ? ' ' + s.postcode : ''}\n\nPlease click the link below to register and confirm your attendance:\n${invitePageUrl}\n\nShukrana Guruji! 🙏`;
     const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textMessage)}`;
     window.open(shareUrl, "_blank");
   };
@@ -288,7 +298,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
         <body>
           <div class="header-info">
             <h1>🌹 Day-of Seva Allocation Sheet</h1>
-            <h2><strong>Event:</strong> ${s.title} &nbsp;|&nbsp; <strong>Date:</strong> ${s.date} at ${s.time} &nbsp;|&nbsp; <strong>Venue:</strong> ${s.addressLine1 || s.address}, ${s.city}</h2>
+            <h2><strong>Event:</strong> ${s.title} &nbsp;|&nbsp; <strong>Date:</strong> ${s.date} at ${s.time} &nbsp;|&nbsp; <strong>Venue:</strong> ${s.addressLine1 || s.address}, ${s.city}${s.postcode ? ' ' + s.postcode : ''}</h2>
             <button onclick="window.print()" style="padding: 10px 20px; background: #d4972a; border: none; color: #fff; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px;">Print Seva Sheet</button>
           </div>
           
@@ -1496,8 +1506,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 275,
-                    height: 40,
+                    top: 272,
+                    height: 38,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1522,8 +1532,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 70,
                     right: 70,
-                    top: 325,
-                    height: 60,
+                    top: 320,
+                    height: 85,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1547,8 +1557,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 398,
-                    height: 65,
+                    top: 418,
+                    height: 40,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -1565,13 +1575,13 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     </div>
                   </div>
 
-                  {/* Address positioned between the third and fourth separator lines (previously empty) */}
+                  {/* Address positioned between the third and fourth separator lines (with pin icon, responsive text size, and postcode included) */}
                   <div style={{
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 471,
-                    height: 20,
+                    top: 467,
+                    height: 32,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1579,26 +1589,28 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     pointerEvents: "none"
                   }}>
                     <span style={{
-                      fontSize: 8.5,
+                      fontSize: getResponsiveAddressFontSize(`${s.addressLine1 || s.address}, ${s.city} ${s.postcode || ""}`),
                       color: "#ffe082",
                       fontFamily: "'Cinzel', serif",
                       fontWeight: "bold",
                       letterSpacing: "0.03em",
                       textAlign: "center",
-                      whiteSpace: "nowrap",
-                      textShadow: "1px 1px 1px rgba(0,0,0,0.8)"
+                      textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
+                      lineHeight: 1.2,
+                      wordBreak: "break-word",
+                      overflowWrap: "anywhere"
                     }}>
-                      📍 {s.addressLine1 || s.address}, {s.city}
+                      📍 {s.addressLine1 || s.address}, {s.city} {s.postcode || ""}
                     </span>
                   </div>
 
-                  {/* Shukrana Text positioned below the fourth separator line (where the address was) */}
+                  {/* Shukrana Text positioned below the fourth separator line */}
                   <div style={{
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 498,
-                    height: 35,
+                    top: 507,
+                    height: 27,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
