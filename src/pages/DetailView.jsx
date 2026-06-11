@@ -68,11 +68,11 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
 
   const getResponsiveAddressFontSize = (text) => {
     const len = text ? text.length : 0;
-    if (len < 30) return 11;
-    if (len < 50) return 10;
-    if (len < 80) return 9;
-    if (len < 100) return 8;
-    return 7.5;
+    if (len < 30) return 13;
+    if (len < 50) return 11.5;
+    if (len < 80) return 10.5;
+    if (len < 100) return 9.5;
+    return 8.5;
   };
 
   const convertTo12HourFormat = (time24) => {
@@ -1485,10 +1485,10 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     alt="Guruji Maharaj" 
                     style={{
                       position: "absolute",
-                      left: 126,
-                      top: 121,
-                      width: 108,
-                      height: 120,
+                      left: 134,
+                      top: 136,
+                      width: 94,
+                      height: 104,
                       borderRadius: "50%",
                       objectFit: "cover",
                       zIndex: 2,
@@ -1516,222 +1516,65 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     </span>
                   </div>
 
-                  {/* Event Title Block with Floating Arrow Selection Buttons */}
+                  {/* Event Title positioned above the first separator line */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
-                    top: 248,
+                    left: 70,
+                    right: 70,
+                    top: 263,
                     height: 52,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    zIndex: 3,
-                    pointerEvents: "auto"
+                    justifyContent: "center",
+                    zIndex: 2,
+                    pointerEvents: "none"
                   }}>
-                    <button
-                      className="no-export"
-                      onClick={() => setTitlePreset(prev => {
-                        const options = [0, 1, 2, 99];
-                        const idx = options.indexOf(prev);
-                        return options[(idx + options.length - 1) % options.length];
-                      })}
-                      style={{
-                        background: "rgba(21, 6, 0, 0.7)",
-                        border: "1px solid #ffe082",
-                        borderRadius: "50%",
-                        width: 24,
-                        height: 24,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#ffe082",
-                        fontSize: 10,
-                        cursor: "pointer",
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
-                        zIndex: 10,
-                        padding: 0,
-                        lineHeight: 1
-                      }}
-                    >
-                      ◀
-                    </button>
-
-                    <div style={{
-                      flex: 1,
-                      marginLeft: 8,
-                      marginRight: 8,
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      pointerEvents: "none"
+                    <span style={{
+                      fontFamily: "'Cinzel', serif",
+                      fontSize: getResponsiveTitleFontSize(currentTitleText),
+                      color: "#ffe082",
+                      fontWeight: "bold",
+                      letterSpacing: "0.08em",
+                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+                      textAlign: "center",
+                      lineHeight: 1.2
                     }}>
-                      <span style={{
-                        fontFamily: "'Cinzel', serif",
-                        fontSize: getResponsiveTitleFontSize(currentTitleText),
-                        color: "#ffe082",
-                        fontWeight: "bold",
-                        letterSpacing: "0.08em",
-                        textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
-                        textAlign: "center",
-                        lineHeight: 1.2
-                      }}>
-                        {currentTitleText}
-                      </span>
-                    </div>
-
-                    <button
-                      className="no-export"
-                      onClick={() => setTitlePreset(prev => {
-                        const options = [0, 1, 2, 99];
-                        const idx = options.indexOf(prev);
-                        return options[(idx + 1) % options.length];
-                      })}
-                      style={{
-                        background: "rgba(21, 6, 0, 0.7)",
-                        border: "1px solid #ffe082",
-                        borderRadius: "50%",
-                        width: 24,
-                        height: 24,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#ffe082",
-                        fontSize: 10,
-                        cursor: "pointer",
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
-                        zIndex: 10,
-                        padding: 0,
-                        lineHeight: 1
-                      }}
-                    >
-                      ▶
-                    </button>
+                      {currentTitleText}
+                    </span>
                   </div>
 
-                  {/* Invitation Message Block with Floating Arrow Selection Buttons */}
+                  {/* Invitation Text positioned between the first and second separator lines (narrow width to not overlap motifs) */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
+                    left: 70,
+                    right: 70,
                     top: 312,
                     height: 94,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    zIndex: 3,
-                    pointerEvents: "auto"
-                  }}>
-                    <button
-                      className="no-export"
-                      onClick={() => setInvitePreset(prev => {
-                        const options = [0, 1, 99];
-                        const idx = options.indexOf(prev);
-                        return options[(idx + options.length - 1) % options.length];
-                      })}
-                      style={{
-                        background: "rgba(21, 6, 0, 0.7)",
-                        border: "1px solid #ffe082",
-                        borderRadius: "50%",
-                        width: 24,
-                        height: 24,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#ffe082",
-                        fontSize: 10,
-                        cursor: "pointer",
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
-                        zIndex: 10,
-                        padding: 0,
-                        lineHeight: 1
-                      }}
-                    >
-                      ◀
-                    </button>
-
-                    <div style={{
-                      flex: 1,
-                      marginLeft: 8,
-                      marginRight: 8,
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      pointerEvents: "none"
-                    }}>
-                      <span style={{
-                        fontFamily: "'Great Vibes', cursive",
-                        fontSize: getResponsiveMessageFontSize(currentInviteText),
-                        color: "#ffe082",
-                        textAlign: "center",
-                        lineHeight: 1.2,
-                        textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
-                      }}>
-                        "{currentInviteText}"
-                      </span>
-                    </div>
-
-                    <button
-                      className="no-export"
-                      onClick={() => setInvitePreset(prev => {
-                        const options = [0, 1, 99];
-                        const idx = options.indexOf(prev);
-                        return options[(idx + 1) % options.length];
-                      })}
-                      style={{
-                        background: "rgba(21, 6, 0, 0.7)",
-                        border: "1px solid #ffe082",
-                        borderRadius: "50%",
-                        width: 24,
-                        height: 24,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#ffe082",
-                        fontSize: 10,
-                        cursor: "pointer",
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
-                        zIndex: 10,
-                        padding: 0,
-                        lineHeight: 1
-                      }}
-                    >
-                      ▶
-                    </button>
-                  </div>
-
-                  {/* Date and Time line */}
-                  <div style={{
-                    position: "absolute",
-                    left: 70,
-                    right: 70,
-                    top: 418,
-                    height: 40,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
                     justifyContent: "center",
-                    gap: 3,
                     zIndex: 2,
                     pointerEvents: "none"
                   }}>
-                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
-                      📅 {s.date ? new Date(s.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
-                      ⏰ {convertTo12HourFormat(s.time)}
-                    </div>
+                    <span style={{
+                      fontFamily: "'Great Vibes', cursive",
+                      fontSize: getResponsiveMessageFontSize(currentInviteText),
+                      color: "#ffe082",
+                      textAlign: "center",
+                      lineHeight: 1.2,
+                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
+                    }}>
+                      "{currentInviteText}"
+                    </span>
                   </div>
 
-                  {/* Address positioned between the third and fourth separator lines (with pin icon, responsive text size, and postcode included) */}
+                  {/* Address positioned between the second and third separator lines (with pin icon, responsive text size, and postcode included) */}
                   <div style={{
                     position: "absolute",
                     left: 70,
                     right: 70,
-                    top: 467,
-                    height: 32,
+                    top: 415,
+                    height: 44,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1746,11 +1589,42 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                       letterSpacing: "0.03em",
                       textAlign: "center",
                       textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
-                      lineHeight: 1.1,
+                      lineHeight: 1.2,
                       wordBreak: "break-word",
                       overflowWrap: "anywhere"
                     }}>
-                      📍 {[s.addressLine1 || s.address, s.addressLine2, s.addressLine3].filter(Boolean).join(', ')}, {s.city} {s.postcode || ""}
+                      📍 {s.addressLine1 || s.address}
+                      {s.addressLine2 ? <><br />{s.addressLine2}</> : null}
+                      {s.addressLine3 ? <><br />{s.addressLine3}</> : null}
+                      <><br />{s.city}{s.postcode ? `, ${s.postcode}` : ""}</>
+                    </span>
+                  </div>
+
+                  {/* Date and Time line positioned between the third and fourth separator lines */}
+                  <div style={{
+                    position: "absolute",
+                    left: 70,
+                    right: 70,
+                    top: 467,
+                    height: 32,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    <span style={{ 
+                      fontSize: 11, 
+                      color: "#ffe082", 
+                      fontWeight: "bold", 
+                      fontFamily: "'Cinzel', serif", 
+                      letterSpacing: "0.04em", 
+                      textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
+                      textAlign: "center"
+                    }}>
+                      {s.date ? new Date(s.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                      {s.date && s.time ? "  ·  " : ""}
+                      {s.time ? convertTo12HourFormat(s.time) : ""}
                     </span>
                   </div>
 

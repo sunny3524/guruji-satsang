@@ -1,0 +1,227 @@
+diff --git a/src/pages/DetailView.jsx b/src/pages/DetailView.jsx
+index c5eb7e1..21bd9be 100644
+--- a/src/pages/DetailView.jsx
++++ b/src/pages/DetailView.jsx
+@@ -1516,190 +1516,56 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
+                     </span>
+                   </div>
+ 
+-                  {/* Event Title Block with Floating Arrow Selection Buttons */}
++                  {/* Event Title positioned above the first separator line */}
+                   <div style={{
+                     position: "absolute",
+-                    left: 20,
+-                    right: 20,
++                    left: 70,
++                    right: 70,
+                     top: 248,
+                     height: 52,
+                     display: "flex",
+                     alignItems: "center",
+-                    justifyContent: "space-between",
+-                    zIndex: 3,
+-                    pointerEvents: "auto"
++                    justifyContent: "center",
++                    zIndex: 2,
++                    pointerEvents: "none"
+                   }}>
+-                    <button
+-                      className="no-export"
+-                      onClick={() => setTitlePreset(prev => {
+-                        const options = [0, 1, 2, 99];
+-                        const idx = options.indexOf(prev);
+-                        return options[(idx + options.length - 1) % options.length];
+-                      })}
+-                      style={{
+-                        background: "rgba(21, 6, 0, 0.7)",
+-                        border: "1px solid #ffe082",
+-                        borderRadius: "50%",
+-                        width: 24,
+-                        height: 24,
+-                        display: "flex",
+-                        alignItems: "center",
+-                        justifyContent: "center",
+-                        color: "#ffe082",
+-                        fontSize: 10,
+-                        cursor: "pointer",
+-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+-                        zIndex: 10,
+-                        padding: 0,
+-                        lineHeight: 1
+-                      }}
+-                    >
+-                      ◀
+-                    </button>
+-
+-                    <div style={{
+-                      flex: 1,
+-                      marginLeft: 8,
+-                      marginRight: 8,
+-                      height: "100%",
+-                      display: "flex",
+-                      alignItems: "center",
+-                      justifyContent: "center",
+-                      pointerEvents: "none"
++                    <span style={{
++                      fontFamily: "'Cinzel', serif",
++                      fontSize: getResponsiveTitleFontSize(currentTitleText),
++                      color: "#ffe082",
++                      fontWeight: "bold",
++                      letterSpacing: "0.08em",
++                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
++                      textAlign: "center",
++                      lineHeight: 1.2
+                     }}>
+-                      <span style={{
+-                        fontFamily: "'Cinzel', serif",
+-                        fontSize: getResponsiveTitleFontSize(currentTitleText),
+-                        color: "#ffe082",
+-                        fontWeight: "bold",
+-                        letterSpacing: "0.08em",
+-                        textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+-                        textAlign: "center",
+-                        lineHeight: 1.2
+-                      }}>
+-                        {currentTitleText}
+-                      </span>
+-                    </div>
+-
+-                    <button
+-                      className="no-export"
+-                      onClick={() => setTitlePreset(prev => {
+-                        const options = [0, 1, 2, 99];
+-                        const idx = options.indexOf(prev);
+-                        return options[(idx + 1) % options.length];
+-                      })}
+-                      style={{
+-                        background: "rgba(21, 6, 0, 0.7)",
+-                        border: "1px solid #ffe082",
+-                        borderRadius: "50%",
+-                        width: 24,
+-                        height: 24,
+-                        display: "flex",
+-                        alignItems: "center",
+-                        justifyContent: "center",
+-                        color: "#ffe082",
+-                        fontSize: 10,
+-                        cursor: "pointer",
+-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+-                        zIndex: 10,
+-                        padding: 0,
+-                        lineHeight: 1
+-                      }}
+-                    >
+-                      ▶
+-                    </button>
++                      {currentTitleText}
++                    </span>
+                   </div>
+ 
+-                  {/* Invitation Message Block with Floating Arrow Selection Buttons */}
++                  {/* Invitation Text positioned between the first and second separator lines (narrow width to not overlap motifs) */}
+                   <div style={{
+                     position: "absolute",
+-                    left: 20,
+-                    right: 20,
++                    left: 70,
++                    right: 70,
+                     top: 312,
+                     height: 94,
+                     display: "flex",
+                     alignItems: "center",
+-                    justifyContent: "space-between",
+-                    zIndex: 3,
+-                    pointerEvents: "auto"
++                    justifyContent: "center",
++                    zIndex: 2,
++                    pointerEvents: "none"
+                   }}>
+-                    <button
+-                      className="no-export"
+-                      onClick={() => setInvitePreset(prev => {
+-                        const options = [0, 1, 99];
+-                        const idx = options.indexOf(prev);
+-                        return options[(idx + options.length - 1) % options.length];
+-                      })}
+-                      style={{
+-                        background: "rgba(21, 6, 0, 0.7)",
+-                        border: "1px solid #ffe082",
+-                        borderRadius: "50%",
+-                        width: 24,
+-                        height: 24,
+-                        display: "flex",
+-                        alignItems: "center",
+-                        justifyContent: "center",
+-                        color: "#ffe082",
+-                        fontSize: 10,
+-                        cursor: "pointer",
+-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+-                        zIndex: 10,
+-                        padding: 0,
+-                        lineHeight: 1
+-                      }}
+-                    >
+-                      ◀
+-                    </button>
+-
+-                    <div style={{
+-                      flex: 1,
+-                      marginLeft: 8,
+-                      marginRight: 8,
+-                      height: "100%",
+-                      display: "flex",
+-                      alignItems: "center",
+-                      justifyContent: "center",
+-                      pointerEvents: "none"
++                    <span style={{
++                      fontFamily: "'Great Vibes', cursive",
++                      fontSize: getResponsiveMessageFontSize(currentInviteText),
++                      color: "#ffe082",
++                      textAlign: "center",
++                      lineHeight: 1.2,
++                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
+                     }}>
+-                      <span style={{
+-                        fontFamily: "'Great Vibes', cursive",
+-                        fontSize: getResponsiveMessageFontSize(currentInviteText),
+-                        color: "#ffe082",
+-                        textAlign: "center",
+-                        lineHeight: 1.2,
+-                        textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
+-                      }}>
+-                        "{currentInviteText}"
+-                      </span>
+-                    </div>
+-
+-                    <button
+-                      className="no-export"
+-                      onClick={() => setInvitePreset(prev => {
+-                        const options = [0, 1, 99];
+-                        const idx = options.indexOf(prev);
+-                        return options[(idx + 1) % options.length];
+-                      })}
+-                      style={{
+-                        background: "rgba(21, 6, 0, 0.7)",
+-                        border: "1px solid #ffe082",
+-                        borderRadius: "50%",
+-                        width: 24,
+-                        height: 24,
+-                        display: "flex",
+-                        alignItems: "center",
+-                        justifyContent: "center",
+-                        color: "#ffe082",
+-                        fontSize: 10,
+-                        cursor: "pointer",
+-                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+-                        zIndex: 10,
+-                        padding: 0,
+-                        lineHeight: 1
+-                      }}
+-                    >
+-                      ▶
+-                    </button>
++                      "{currentInviteText}"
++                    </span>
+                   </div>
+ 
+                   {/* Date and Time line */}
