@@ -2,9 +2,14 @@
 // Shared across components and pages for internationalization.
 
 export const C = {
-  bg: "#1a0800", card: "#270e03", border: "#5c2a0a",
-  gold: "#d4972a", saffron: "#e06b10", cream: "#fdfbf7",
-  muted: "#9c7050", red: "#722f37",
+  bg: "var(--color-bg)",
+  card: "var(--color-card)",
+  border: "var(--color-border)",
+  gold: "var(--color-gold)",
+  saffron: "var(--color-saffron)",
+  cream: "var(--color-cream)",
+  muted: "var(--color-muted)",
+  red: "var(--color-red)",
 };
 
 export const fmtDate = d => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });

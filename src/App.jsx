@@ -2,7 +2,7 @@
 // Full Firebase integration: Auth, Firestore, Cloud Functions (email)
 import { useState, useEffect, useCallback } from "react";
 import { logoutUser } from "./firebase/auth";
-import { getUpcomingSatsangs } from "./firebase/firestore";
+import { getUpcomingSatsangs, updateUserTheme } from "./firebase/firestore";
 import { useAuth, AuthProvider } from "./hooks/useAuth";
 import { C, estimateCountryFromTimezone } from "./utils/constants";
 
@@ -46,6 +46,41 @@ function AppInner() {
   const [upcoming, setUpcoming] = useState([]);
   const [heroImg] = useState(GURUJI_IMGS[Math.floor(Math.random() * GURUJI_IMGS.length)]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem("theme");
+    if (stored === "light" || stored === "dark") return stored;
+    return "dark";
+  });
+
+  // Apply/remove CSS class whenever the theme state changes
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.add("theme-light");
+      localStorage.setItem("theme", "light");
+    } else {
+      document.documentElement.classList.remove("theme-light");
+      localStorage.setItem("theme", "dark");
+    }
+  }, [theme]);
+
+  // Sync state with logged-in user's profile theme preference
+  useEffect(() => {
+    if (profile && profile.theme) {
+      setTheme(profile.theme);
+    }
+  }, [profile]);
+
+  const handleToggleTheme = async () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    if (user) {
+      try {
+        await updateUserTheme(user.uid, nextTheme);
+      } catch (err) {
+        console.warn("Failed to persist theme to profile:", err);
+      }
+    }
+  };
 
   const [ipCountry, setIpCountry] = useState(() => estimateCountryFromTimezone()); // Default fallback using timezone estimation
   const [ipCoords, setIpCoords] = useState(null);
@@ -182,7 +217,7 @@ function AppInner() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: `linear-gradient(160deg,#1a0800 0%,#0f0500 100%)`,
+      background: `linear-gradient(160deg, var(--color-bg) 0%, var(--color-bg-darker) 100%)`,
       color: C.cream,
       fontFamily: "var(--font-body)"
     }}>
@@ -259,6 +294,25 @@ function AppInner() {
               {item.l}
             </button>
           ))}
+          <button
+            onClick={handleToggleTheme}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: C.muted,
+              fontSize: 16,
+              padding: "7px 10px",
+              marginLeft: 8,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+            title={theme === "dark" ? "Switch to Light Theme" : "Switch to Dark Theme"}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
         </div>
 
         {/* Mobile Hamburger Navigation */}
@@ -420,6 +474,41 @@ function AppInner() {
                   {item.l}
                 </button>
               ))}
+              <div style={{ height: 1, background: "rgba(212,151,42,0.15)", margin: "4px 0" }} />
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleToggleTheme();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  padding: "10px 14px",
+                  background: "none",
+                  border: "none",
+                  borderRadius: 8,
+                  color: C.cream,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s ease",
+                  fontFamily: "var(--font-headings)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(212, 151, 42, 0.12)";
+                  e.currentTarget.style.color = C.gold;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "none";
+                  e.currentTarget.style.color = C.cream;
+                }}
+              >
+                <span>Theme: {theme === "dark" ? "Dark 🌙" : "Light ☀️"}</span>
+                <span>{theme === "dark" ? "☀️" : "🌙"}</span>
+              </button>
             </div>
           )}
         </div>

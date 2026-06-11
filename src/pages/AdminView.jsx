@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../firebase/config";
 import {
-  getAllSatsangs, getAllUsers, cancelSatsang, updateUserRole
+  getAllSatsangs, getAllUsers, cancelSatsang, updateUserRole, updateUserTheme
 } from "../firebase/firestore";
 import { C, fmtTime } from "../utils/constants";
 import Btn from "../components/ui/Btn";
@@ -15,6 +15,7 @@ export default function AdminView({ user, profile, nav, notify }) {
   const [allUsers, setAllUsers] = useState([]);
   const [broadcast, setBroadcast] = useState({ subject: "", body: "" });
   const [busy, setBusy] = useState(false);
+  const [migrating, setMigrating] = useState(false);
 
   useEffect(() => {
     getAllSatsangs().then(setAllSatsangs);
@@ -44,6 +45,33 @@ export default function AdminView({ user, profile, nav, notify }) {
       setBroadcast({ subject: "", body: "" });
     } catch (e) { notify(e.message, "err"); }
     setBusy(false);
+  };
+
+  const runThemeMigration = async () => {
+    const usersToMigrate = allUsers.filter(u => !u.theme);
+    if (usersToMigrate.length === 0) {
+      notify("All users already have a theme set. No migration needed.");
+      return;
+    }
+
+    if (!window.confirm(`Found ${usersToMigrate.length} users without a theme preference. Start migration to default "dark" theme?`)) {
+      return;
+    }
+
+    setMigrating(true);
+    let count = 0;
+    try {
+      for (const u of usersToMigrate) {
+        await updateUserTheme(u.id, "dark");
+        count++;
+      }
+      const updatedUsers = await getAllUsers();
+      setAllUsers(updatedUsers);
+      notify(`Successfully migrated ${count} users to "dark" theme!`);
+    } catch (e) {
+      notify(e.message, "err");
+    }
+    setMigrating(false);
   };
 
   const TABS = [["satsangs", "All Satsangs"], ["users", "Users"], ["broadcast", "Broadcast"]];
@@ -132,7 +160,12 @@ export default function AdminView({ user, profile, nav, notify }) {
 
       {tab === "users" && (
         <div>
-          <div style={{ marginBottom: 16 }}><span style={{ color: C.muted, fontSize: 14 }}>{allUsers.length} registered members</span></div>
+          <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+            <span style={{ color: C.muted, fontSize: 14 }}>{allUsers.length} registered members</span>
+            <Btn onClick={runThemeMigration} disabled={migrating} style={{ padding: "8px 16px", fontSize: 12 }}>
+              {migrating ? "Migrating..." : "Run Theme Migration (Backfill Dark)"}
+            </Btn>
+          </div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${C.border}` }}>

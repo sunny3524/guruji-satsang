@@ -23,6 +23,7 @@ export async function createUserProfile(uid, data) {
       await setDoc(doc(db, USERS, uid), {
         ...data,
         role: "member",          // member | organiser | admin
+        theme: "dark",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -45,6 +46,10 @@ export async function updateUserRole(uid, role) {
 
 export async function updateUserGuests(uid, guests) {
   await updateDoc(doc(db, USERS, uid), { guests, updatedAt: serverTimestamp() });
+}
+
+export async function updateUserTheme(uid, theme) {
+  await updateDoc(doc(db, USERS, uid), { theme, updatedAt: serverTimestamp() });
 }
 
 // ── Satsangs ──────────────────────────────────────────────────────────────────
