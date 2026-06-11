@@ -52,9 +52,10 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
 
   const getResponsiveMessageFontSize = (text) => {
     const len = text ? text.length : 0;
-    if (len < 60) return 15;
-    if (len < 100) return 13;
-    if (len < 140) return 11.5;
+    if (len < 55) return 16;
+    if (len < 90) return 14.5;
+    if (len < 130) return 13;
+    if (len < 170) return 11.5;
     return 10.5;
   };
 
@@ -73,6 +74,14 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
     if (len < 75) return 7;
     if (len < 95) return 6.5;
     return 5.5;
+  };
+
+  const convertTo12HourFormat = (time24) => {
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
   };
 
   const handleDownloadInvite = async () => {
@@ -1470,10 +1479,10 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     style={{
                       position: "absolute",
                       left: 124,
-                      top: 137,
-                      width: 112,
-                      height: 104,
-                      borderRadius: "50%",
+                      top: 132,
+                      width: 108,
+                      height: 118,
+                      borderRadius: "48% / 56%",
                       objectFit: "cover",
                       zIndex: 2,
                       pointerEvents: "none"
@@ -1503,8 +1512,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                   {/* Event Title positioned above the first separator line */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
+                    left: 36,
+                    right: 36,
                     top: 272,
                     height: 38,
                     display: "flex",
@@ -1531,8 +1540,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 70,
                     right: 70,
-                    top: 320,
-                    height: 85,
+                    top: 286,
+                    height: 145,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1544,7 +1553,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                       fontSize: getResponsiveMessageFontSize(currentInviteText),
                       color: "#ffe082",
                       textAlign: "center",
-                      lineHeight: 1.3,
+                      lineHeight: 1.2,
                       textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
                     }}>
                       "{currentInviteText}"
@@ -1556,8 +1565,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 418,
-                    height: 40,
+                    top: 404,
+                    height: 52,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -1570,7 +1579,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                       📅 {s.date}
                     </div>
                     <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
-                      ⏰ {s.time}
+                      ⏰ {convertTo12HourFormat(s.time)}
                     </div>
                   </div>
 
@@ -1579,8 +1588,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 467,
-                    height: 32,
+                    top: 453,
+                    height: 52,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1608,8 +1617,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 507,
-                    height: 27,
+                    top: 503,
+                    height: 40,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1678,7 +1687,11 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                 <Label>Event Title</Label>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <button
-                    onClick={() => setTitlePreset(titlePreset === 0 ? 2 : titlePreset - 1)}
+                    onClick={() => setTitlePreset(prev => {
+                      const options = [0, 1, 2, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + options.length - 1) % options.length];
+                    })}
                     style={{
                       background: C.card,
                       border: `1px solid ${C.border}`,
@@ -1714,7 +1727,11 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     {titlePreset === 99 ? "Custom Title" : TITLE_PRESETS[titlePreset] || "Satsang"}
                   </div>
                   <button
-                    onClick={() => setTitlePreset(titlePreset === 2 ? 0 : titlePreset + 1)}
+                    onClick={() => setTitlePreset(prev => {
+                      const options = [0, 1, 2, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + 1) % options.length];
+                    })}
                     style={{
                       background: C.card,
                       border: `1px solid ${C.border}`,
@@ -1732,27 +1749,9 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     ▶
                   </button>
                 </div>
-                <select 
-                  value={titlePreset}
-                  onChange={(e) => setTitlePreset(Number(e.target.value))}
-                  style={{
-                    width: "100%",
-                    background: C.card,
-                    border: `1px solid ${C.border}`,
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                    color: C.cream,
-                    fontSize: 13,
-                    fontFamily: "var(--font-body)",
-                    outline: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  <option value={0}>Satsang Title</option>
-                  <option value={1}>Guruji Ka Satsang</option>
-                  <option value={2}>Guruji's Satsang</option>
-                  <option value={99}>Custom Title...</option>
-                </select>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
+                  Use the arrows to cycle the title shown on the invite. The current text previews directly above.
+                </div>
               </div>
 
               {/* Custom Title Input */}
@@ -1785,7 +1784,11 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                 <Label>Invite Message Preset</Label>
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
                   <button
-                    onClick={() => setInvitePreset(invitePreset === 0 ? 1 : invitePreset - 1)}
+                    onClick={() => setInvitePreset(prev => {
+                      const options = [0, 1, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + options.length - 1) % options.length];
+                    })}
                     style={{
                       background: C.card,
                       border: `1px solid ${C.border}`,
@@ -1824,7 +1827,11 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     {invitePreset === 99 ? "Custom Message" : INVITE_PRESETS[invitePreset] || ""}
                   </div>
                   <button
-                    onClick={() => setInvitePreset(invitePreset === 1 ? 0 : invitePreset + 1)}
+                    onClick={() => setInvitePreset(prev => {
+                      const options = [0, 1, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + 1) % options.length];
+                    })}
                     style={{
                       background: C.card,
                       border: `1px solid ${C.border}`,
@@ -1844,26 +1851,9 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     ▶
                   </button>
                 </div>
-                <select 
-                  value={invitePreset}
-                  onChange={(e) => setInvitePreset(Number(e.target.value))}
-                  style={{
-                    width: "100%",
-                    background: C.card,
-                    border: `1px solid ${C.border}`,
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                    color: C.cream,
-                    fontSize: 13,
-                    fontFamily: "var(--font-body)",
-                    outline: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  <option value={0}>Option 1 (Traditional/Polite)</option>
-                  <option value={1}>Option 2 (Warm Family Invite)</option>
-                  <option value={99}>Custom Message...</option>
-                </select>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
+                  Use the arrows to cycle the invitation message shown on the invite. The preview updates immediately, and the final export hides the controls.
+                </div>
               </div>
 
               {/* Custom Text Area */}
