@@ -19,6 +19,7 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
   const [searchError, setSearchError] = useState(null);
   const [visibilityTab, setVisibilityTab] = useState("public"); // "public" | "private"
   const [allDevotees, setAllDevotees] = useState([]);
+  const [geocodedSatsangs, setGeocodedSatsangs] = useState({});
 
   const isOrganiserOrAdmin = profile?.role === "organiser" || profile?.role === "host" || profile?.role === "admin";
 
@@ -36,6 +37,34 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
     };
     fetchSangatPresence();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function backfillMissingCoords() {
+      const missing = upcoming.filter(s => !s.latitude || !s.longitude);
+      if (missing.length === 0) return;
+
+      for (const s of missing) {
+        const queryParts = [s.addressLine1, s.city, s.postcode, s.country].filter(Boolean);
+        const queryStr = queryParts.join(", ").trim();
+        if (!queryStr) continue;
+
+        try {
+          const coords = await geocodeLocation(queryStr);
+          if (coords && active) {
+            setGeocodedSatsangs(prev => ({
+              ...prev,
+              [s.id]: coords
+            }));
+          }
+        } catch (err) {
+          console.warn(`Failed to geocode missing address for satsang ${s.id}:`, err);
+        }
+      }
+    }
+    backfillMissingCoords();
+    return () => { active = false; };
+  }, [upcoming]);
 
   const visibleUpcoming = upcoming.filter(s => {
     if (s.isPrivate === true) {
@@ -162,12 +191,18 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
   // Create calculated list
   const calculatedSatsangs = visibleUpcoming.map(s => {
     let distance = null;
+    const lat = s.latitude || geocodedSatsangs[s.id]?.lat;
+    const lng = s.longitude || geocodedSatsangs[s.id]?.lng;
     if (activeSearch && searchCoords) {
-      distance = getDistanceKm(s.latitude, s.longitude, searchCoords.lat, searchCoords.lng);
+      if (lat && lng) {
+        distance = getDistanceKm(lat, lng, searchCoords.lat, searchCoords.lng);
+      }
     } else if (userCoords && !activeSearch) {
-      distance = getDistanceKm(s.latitude, s.longitude, userCoords.lat, userCoords.lng);
+      if (lat && lng) {
+        distance = getDistanceKm(lat, lng, userCoords.lat, userCoords.lng);
+      }
     }
-    return { ...s, distance };
+    return { ...s, latitude: lat, longitude: lng, distance };
   });
 
   // Filter list
@@ -532,7 +567,7 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
 
       {/* Interactive Sangat Near You Map */}
       <SangatNearYouMap 
-        upcoming={visibleUpcoming} 
+        upcoming={filteredSatsangs} 
         nav={nav} 
         devotees={allDevotees} 
         userCoords={userCoords}
