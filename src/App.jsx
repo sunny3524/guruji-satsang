@@ -501,7 +501,7 @@ function AppInner() {
                   e.currentTarget.style.color = C.cream;
                 }}
               >
-                <span>Light Theme</span>
+                <span>Theme</span>
                 <div style={{
                   width: 44,
                   height: 24,
