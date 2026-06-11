@@ -799,9 +799,6 @@ function SangatNearYouMap({ upcoming, nav, devotees = [], userCoords, searchCoor
             </button>
           ))}
         </div>
-        <span style={{ fontSize: 13, color: C.muted }}>
-          🗺️ Interactive Map · Covered in {SANGAT_COUNTRIES.length - 1} countries
-        </span>
       </div>
 
       {/* Map Container */}
