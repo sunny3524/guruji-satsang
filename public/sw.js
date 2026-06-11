@@ -1,4 +1,4 @@
-const CACHE_NAME = "satsang-cache-v3";
+const CACHE_NAME = "satsang-cache-v4";
 const ASSETS = [
   "/manifest.json",
   "/favicon.ico",

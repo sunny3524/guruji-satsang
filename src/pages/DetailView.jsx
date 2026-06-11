@@ -142,7 +142,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
   const invitePageUrl = `https://gurujisatsangs.com/#/satsang/${satsangId}`;
 
   const handleWhatsAppShare = () => {
-    const textMessage = `🙏 Jai Guruji! You are warmly invited to attend our upcoming Satsang. \n\nDetails:\n📅 Date: ${s.date}\n⏰ Time: ${s.time}\n📍 Venue: ${s.addressLine1 || s.address}, ${s.city}${s.postcode ? ' ' + s.postcode : ''}\n\nPlease click the link below to register and confirm your attendance:\n${invitePageUrl}\n\nShukrana Guruji! 🙏`;
+    const venueLines = [s.addressLine1 || s.address, s.addressLine2, s.addressLine3].filter(Boolean).join(', ');
+    const textMessage = `🙏 Jai Guruji! You are warmly invited to attend our upcoming Satsang. \n\nDetails:\n📅 Date: ${s.date}\n⏰ Time: ${s.time}\n📍 Venue: ${venueLines}, ${s.city}${s.postcode ? ' ' + s.postcode : ''}\n\nPlease click the link below to register and confirm your attendance:\n${invitePageUrl}\n\nShukrana Guruji! 🙏`;
     const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textMessage)}`;
     window.open(shareUrl, "_blank");
   };
@@ -664,7 +665,9 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
               <span>, {s.city} {s.postcode}</span>
             </>
           ) : (
-            <span>{s.addressLine1 || s.address}, {s.city} {s.postcode}</span>
+            <span>
+              {[s.addressLine1 || s.address, s.addressLine2, s.addressLine3].filter(Boolean).join(', ')}, {s.city} {s.postcode}
+            </span>
           )}
         </div>
         {s.description && <p style={{ fontSize: 15, color: "#c0a060", lineHeight: 1.8, marginBottom: 22 }}>{s.description}</p>}
@@ -689,7 +692,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
           lat={s.latitude} 
           lng={s.longitude} 
           shouldHideAddress={shouldHideAddress} 
-          addressStr={s.addressLine1 || s.address}
+          addressStr={[s.addressLine1 || s.address, s.addressLine2, s.addressLine3].filter(Boolean).join(', ')}
         />
       )}
 
@@ -1552,27 +1555,44 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     </span>
                   </div>
 
-                  {/* Date & Time positioned between the second and third separator lines */}
+                  {/* Date line — independently positioned */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
-                    top: 418,
-                    height: 40,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 3,
+                    left: 0,
+                    right: 0,
+                    top: 432,
+                    textAlign: "center",
+                    fontSize: 11,
+                    color: "#ffe082",
+                    fontWeight: "bold",
+                    fontFamily: "'Cinzel', serif",
+                    letterSpacing: "0.04em",
+                    textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
+                    whiteSpace: "nowrap",
                     zIndex: 2,
                     pointerEvents: "none"
                   }}>
-                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
-                      📅 {s.date}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
-                      ⏰ {s.time}
-                    </div>
+                    📅 {new Date(s.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  </div>
+
+                  {/* Time line — independently positioned */}
+                  <div style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    top: 449,
+                    textAlign: "center",
+                    fontSize: 11,
+                    color: "#ffe082",
+                    fontWeight: "bold",
+                    fontFamily: "'Cinzel', serif",
+                    letterSpacing: "0.04em",
+                    textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
+                    whiteSpace: "nowrap",
+                    zIndex: 2,
+                    pointerEvents: "none"
+                  }}>
+                    ⏰ {s.time}
                   </div>
 
                   {/* Address positioned between the third and fourth separator lines (with pin icon, responsive text size, and postcode included) */}
@@ -1580,7 +1600,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 467,
+                    top: 478,
                     height: 32,
                     display: "flex",
                     alignItems: "center",
@@ -1589,7 +1609,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     pointerEvents: "none"
                   }}>
                     <span style={{
-                      fontSize: getResponsiveAddressFontSize(`${s.addressLine1 || s.address}, ${s.city} ${s.postcode || ""}`),
+                      fontSize: getResponsiveAddressFontSize(`${[s.addressLine1 || s.address, s.addressLine2, s.addressLine3].filter(Boolean).join(', ')}, ${s.city} ${s.postcode || ""}`),
                       color: "#ffe082",
                       fontFamily: "'Cinzel', serif",
                       fontWeight: "bold",
@@ -1600,7 +1620,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                       wordBreak: "break-word",
                       overflowWrap: "anywhere"
                     }}>
-                      📍 {s.addressLine1 || s.address}, {s.city} {s.postcode || ""}
+                      📍 {[s.addressLine1 || s.address, s.addressLine2, s.addressLine3].filter(Boolean).join(', ')}, {s.city} {s.postcode || ""}
                     </span>
                   </div>
 
@@ -1609,7 +1629,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 507,
+                    top: 518,
                     height: 27,
                     display: "flex",
                     alignItems: "center",
