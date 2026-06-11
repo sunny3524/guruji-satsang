@@ -37,8 +37,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
   const inviteRef = useRef(null);
 
   const INVITE_PRESETS = [
-    "With the blessings of Guruji Maharaj, we request the pleasure of your company for Satsang, Chai, and Langar Prasad.",
-    "Jai Guruji. We warmly invite you to join us for our family Satsang and receive Guruji's blessings and Langar Prasad."
+    "With the blessings of Guruji Maharaj, we request the pleasure of your company for satsang, chai and langar prasad.",
+    "Jai Guruji, we warmly invite you to join us for our family satsang and receive Guruji’s blessings and langar Prasad"
   ];
 
   const currentInviteText = invitePreset === 99 ? customInviteText : INVITE_PRESETS[invitePreset];
@@ -68,12 +68,11 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
 
   const getResponsiveAddressFontSize = (text) => {
     const len = text ? text.length : 0;
-    if (len < 25) return 10;
-    if (len < 40) return 9;
-    if (len < 55) return 8;
-    if (len < 75) return 7;
-    if (len < 95) return 6.5;
-    return 5.5;
+    if (len < 30) return 11;
+    if (len < 50) return 10;
+    if (len < 80) return 9;
+    if (len < 100) return 8;
+    return 7.5;
   };
 
   const convertTo12HourFormat = (time24) => {
@@ -89,13 +88,18 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
     setGeneratingImage(true);
     try {
       // First render (iOS/Safari warm-up render to load/cache fonts/images)
-      await toPng(inviteRef.current, { cacheBust: true, pixelRatio: 2 });
+      await toPng(inviteRef.current, { 
+        cacheBust: true, 
+        pixelRatio: 2,
+        filter: (node) => !node.classList?.contains('no-export')
+      });
       await new Promise(r => setTimeout(r, 150));
       
       // Actual final render
       const dataUrl = await toPng(inviteRef.current, {
         cacheBust: true,
         pixelRatio: 2,
+        filter: (node) => !node.classList?.contains('no-export')
       });
 
       // Synchronous base64 to Blob conversion (more reliable than fetch(dataUrl))
@@ -1481,11 +1485,11 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     alt="Guruji Maharaj" 
                     style={{
                       position: "absolute",
-                      left: 124,
-                      top: 132,
+                      left: 126,
+                      top: 121,
                       width: 108,
-                      height: 118,
-                      borderRadius: "48% / 56%",
+                      height: 120,
+                      borderRadius: "50%",
                       objectFit: "cover",
                       zIndex: 2,
                       pointerEvents: "none"
@@ -1512,62 +1516,197 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     </span>
                   </div>
 
-                  {/* Event Title positioned above the first separator line */}
+                  {/* Event Title Block with Floating Arrow Selection Buttons */}
                   <div style={{
                     position: "absolute",
-                    left: 36,
-                    right: 36,
-                    top: 272,
-                    height: 38,
+                    left: 20,
+                    right: 20,
+                    top: 248,
+                    height: 52,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 2,
-                    pointerEvents: "none"
+                    justifyContent: "space-between",
+                    zIndex: 3,
+                    pointerEvents: "auto"
                   }}>
-                    <span style={{
-                      fontFamily: "'Cinzel', serif",
-                      fontSize: getResponsiveTitleFontSize(currentTitleText),
-                      color: "#ffe082",
-                      fontWeight: "bold",
-                      letterSpacing: "0.08em",
-                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
-                      textAlign: "center"
+                    <button
+                      className="no-export"
+                      onClick={() => setTitlePreset(prev => {
+                        const options = [0, 1, 2, 99];
+                        const idx = options.indexOf(prev);
+                        return options[(idx + options.length - 1) % options.length];
+                      })}
+                      style={{
+                        background: "rgba(21, 6, 0, 0.7)",
+                        border: "1px solid #ffe082",
+                        borderRadius: "50%",
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffe082",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+                        zIndex: 10,
+                        padding: 0,
+                        lineHeight: 1
+                      }}
+                    >
+                      ◀
+                    </button>
+
+                    <div style={{
+                      flex: 1,
+                      marginLeft: 8,
+                      marginRight: 8,
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      pointerEvents: "none"
                     }}>
-                      {currentTitleText}
-                    </span>
+                      <span style={{
+                        fontFamily: "'Cinzel', serif",
+                        fontSize: getResponsiveTitleFontSize(currentTitleText),
+                        color: "#ffe082",
+                        fontWeight: "bold",
+                        letterSpacing: "0.08em",
+                        textShadow: "2px 2px 4px rgba(0,0,0,0.9)",
+                        textAlign: "center",
+                        lineHeight: 1.2
+                      }}>
+                        {currentTitleText}
+                      </span>
+                    </div>
+
+                    <button
+                      className="no-export"
+                      onClick={() => setTitlePreset(prev => {
+                        const options = [0, 1, 2, 99];
+                        const idx = options.indexOf(prev);
+                        return options[(idx + 1) % options.length];
+                      })}
+                      style={{
+                        background: "rgba(21, 6, 0, 0.7)",
+                        border: "1px solid #ffe082",
+                        borderRadius: "50%",
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffe082",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+                        zIndex: 10,
+                        padding: 0,
+                        lineHeight: 1
+                      }}
+                    >
+                      ▶
+                    </button>
                   </div>
 
-                  {/* Invitation Text positioned between the first and second separator lines (narrow width to not overlap motifs) */}
+                  {/* Invitation Message Block with Floating Arrow Selection Buttons */}
                   <div style={{
                     position: "absolute",
-                    left: 70,
-                    right: 70,
-                    top: 320,
-                    height: 85,
+                    left: 20,
+                    right: 20,
+                    top: 312,
+                    height: 94,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 2,
-                    pointerEvents: "none"
+                    justifyContent: "space-between",
+                    zIndex: 3,
+                    pointerEvents: "auto"
                   }}>
-                    <span style={{
-                      fontFamily: "'Great Vibes', cursive",
-                      fontSize: getResponsiveMessageFontSize(currentInviteText),
-                      color: "#ffe082",
-                      textAlign: "center",
-                      lineHeight: 1.2,
-                      textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
+                    <button
+                      className="no-export"
+                      onClick={() => setInvitePreset(prev => {
+                        const options = [0, 1, 99];
+                        const idx = options.indexOf(prev);
+                        return options[(idx + options.length - 1) % options.length];
+                      })}
+                      style={{
+                        background: "rgba(21, 6, 0, 0.7)",
+                        border: "1px solid #ffe082",
+                        borderRadius: "50%",
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffe082",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+                        zIndex: 10,
+                        padding: 0,
+                        lineHeight: 1
+                      }}
+                    >
+                      ◀
+                    </button>
+
+                    <div style={{
+                      flex: 1,
+                      marginLeft: 8,
+                      marginRight: 8,
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      pointerEvents: "none"
                     }}>
-                      "{currentInviteText}"
-                    </span>
+                      <span style={{
+                        fontFamily: "'Great Vibes', cursive",
+                        fontSize: getResponsiveMessageFontSize(currentInviteText),
+                        color: "#ffe082",
+                        textAlign: "center",
+                        lineHeight: 1.2,
+                        textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
+                      }}>
+                        "{currentInviteText}"
+                      </span>
+                    </div>
+
+                    <button
+                      className="no-export"
+                      onClick={() => setInvitePreset(prev => {
+                        const options = [0, 1, 99];
+                        const idx = options.indexOf(prev);
+                        return options[(idx + 1) % options.length];
+                      })}
+                      style={{
+                        background: "rgba(21, 6, 0, 0.7)",
+                        border: "1px solid #ffe082",
+                        borderRadius: "50%",
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffe082",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.5)",
+                        zIndex: 10,
+                        padding: 0,
+                        lineHeight: 1
+                      }}
+                    >
+                      ▶
+                    </button>
                   </div>
 
                   {/* Date and Time line */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
+                    left: 70,
+                    right: 70,
                     top: 418,
                     height: 40,
                     display: "flex",
@@ -1589,8 +1728,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                   {/* Address positioned between the third and fourth separator lines (with pin icon, responsive text size, and postcode included) */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
+                    left: 70,
+                    right: 70,
                     top: 467,
                     height: 32,
                     display: "flex",
@@ -1607,7 +1746,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                       letterSpacing: "0.03em",
                       textAlign: "center",
                       textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
-                      lineHeight: 1.2,
+                      lineHeight: 1.1,
                       wordBreak: "break-word",
                       overflowWrap: "anywhere"
                     }}>
@@ -1618,8 +1757,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                   {/* Shukrana Text positioned below the fourth separator line */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
+                    left: 70,
+                    right: 70,
                     top: 507,
                     height: 27,
                     display: "flex",
