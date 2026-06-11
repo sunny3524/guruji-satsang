@@ -153,13 +153,6 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
 
   const invitePageUrl = `https://gurujisatsangs.com/#/satsang/${satsangId}`;
 
-  const handleWhatsAppShare = () => {
-    const venueLines = [s.addressLine1 || s.address, s.addressLine2, s.addressLine3].filter(Boolean).join(', ');
-    const textMessage = `🙏 Jai Guruji! You are warmly invited to attend our upcoming Satsang. \n\nDetails:\n📅 Date: ${s.date}\n⏰ Time: ${s.time}\n📍 Venue: ${venueLines}, ${s.city}${s.postcode ? ' ' + s.postcode : ''}\n\nPlease click the link below to register and confirm your attendance:\n${invitePageUrl}\n\nShukrana Guruji! 🙏`;
-    const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textMessage)}`;
-    window.open(shareUrl, "_blank");
-  };
-
   useEffect(() => {
     if (!satsangId) return;
     const unsub = subscribeSatsang(satsangId, setS);
@@ -1904,26 +1897,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
               {/* Action Buttons */}
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: "auto" }}>
                 <Btn onClick={handleDownloadInvite} disabled={generatingImage} full>
-                  {generatingImage ? "Generating Flyer..." : "💾 Download Invite Image"}
+                  {generatingImage ? "Generating Flyer..." : "💾 Download & Share Invite Image"}
                 </Btn>
-                <button
-                  onClick={handleWhatsAppShare}
-                  style={{
-                    width: "100%",
-                    background: "#25D366",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "12px",
-                    color: "#1a0800",
-                    fontWeight: "bold",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    textAlign: "center"
-                  }}
-                >
-                  💬 Share directly to WhatsApp
-                </button>
                 <button
                   onClick={() => setShowInviteModal(false)}
                   style={{
