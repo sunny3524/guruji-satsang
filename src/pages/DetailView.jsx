@@ -38,24 +38,24 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
 
   const INVITE_PRESETS = [
     "With the blessings of Guruji Maharaj, we request the pleasure of your company for Satsang, Chai, and Langar Prasad.",
-    "Jai Guruji. We warmly invite you to join us for our family Satsang and receive Guruji's blessings and Langar Prasad.",
-    "By the grace of Guruji, we request your presence in our home for a divine evening of Satsang and Langar Prasad."
+    "Jai Guruji. We warmly invite you to join us for our family Satsang and receive Guruji's blessings and Langar Prasad."
   ];
 
   const currentInviteText = invitePreset === 99 ? customInviteText : INVITE_PRESETS[invitePreset];
 
   const TITLE_PRESETS = [
-    "Guruji's Satsang",
+    s?.title || "Satsang",
     "Guruji Ka Satsang",
-    s?.title || "Satsang"
+    "Guruji's Satsang"
   ];
   const currentTitleText = titlePreset === 99 ? customTitleText : (TITLE_PRESETS[titlePreset] || "Satsang");
 
   const getResponsiveMessageFontSize = (text) => {
     const len = text ? text.length : 0;
-    if (len < 60) return 15;
-    if (len < 100) return 13;
-    if (len < 140) return 11.5;
+    if (len < 55) return 16;
+    if (len < 90) return 14.5;
+    if (len < 130) return 13;
+    if (len < 170) return 11.5;
     return 10.5;
   };
 
@@ -74,6 +74,14 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
     if (len < 75) return 7;
     if (len < 95) return 6.5;
     return 5.5;
+  };
+
+  const convertTo12HourFormat = (time24) => {
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;
   };
 
   const handleDownloadInvite = async () => {
@@ -1474,10 +1482,10 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     style={{
                       position: "absolute",
                       left: 124,
-                      top: 137,
-                      width: 112,
-                      height: 104,
-                      borderRadius: "50%",
+                      top: 132,
+                      width: 108,
+                      height: 118,
+                      borderRadius: "48% / 56%",
                       objectFit: "cover",
                       zIndex: 2,
                       pointerEvents: "none"
@@ -1507,8 +1515,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                   {/* Event Title positioned above the first separator line */}
                   <div style={{
                     position: "absolute",
-                    left: 20,
-                    right: 20,
+                    left: 36,
+                    right: 36,
                     top: 272,
                     height: 38,
                     display: "flex",
@@ -1535,8 +1543,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 70,
                     right: 70,
-                    top: 320,
-                    height: 85,
+                    top: 286,
+                    height: 145,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1548,51 +1556,34 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                       fontSize: getResponsiveMessageFontSize(currentInviteText),
                       color: "#ffe082",
                       textAlign: "center",
-                      lineHeight: 1.3,
+                      lineHeight: 1.2,
                       textShadow: "2px 2px 4px rgba(0,0,0,0.9)"
                     }}>
                       "{currentInviteText}"
                     </span>
                   </div>
 
-                  {/* Date line — independently positioned */}
+                  {/* Date and Time line */}
                   <div style={{
                     position: "absolute",
-                    left: 0,
-                    right: 0,
-                    top: 432,
-                    textAlign: "center",
-                    fontSize: 11,
-                    color: "#ffe082",
-                    fontWeight: "bold",
-                    fontFamily: "'Cinzel', serif",
-                    letterSpacing: "0.04em",
-                    textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
-                    whiteSpace: "nowrap",
+                    left: 20,
+                    right: 20,
+                    top: 404,
+                    height: 52,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 3,
                     zIndex: 2,
                     pointerEvents: "none"
                   }}>
-                    📅 {new Date(s.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                  </div>
-
-                  {/* Time line — independently positioned */}
-                  <div style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    top: 449,
-                    textAlign: "center",
-                    fontSize: 11,
-                    color: "#ffe082",
-                    fontWeight: "bold",
-                    fontFamily: "'Cinzel', serif",
-                    letterSpacing: "0.04em",
-                    textShadow: "1px 1px 1px rgba(0,0,0,0.8)",
-                    whiteSpace: "nowrap",
-                    zIndex: 2,
-                    pointerEvents: "none"
-                  }}>
-                    ⏰ {s.time}
+                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
+                      📅 {s.date ? new Date(s.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#ffe082", fontWeight: "bold", fontFamily: "'Cinzel', serif", letterSpacing: "0.04em", textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}>
+                      ⏰ {convertTo12HourFormat(s.time)}
+                    </div>
                   </div>
 
                   {/* Address positioned between the third and fourth separator lines (with pin icon, responsive text size, and postcode included) */}
@@ -1600,8 +1591,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 478,
-                    height: 32,
+                    top: 453,
+                    height: 52,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1629,8 +1620,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     position: "absolute",
                     left: 20,
                     right: 20,
-                    top: 518,
-                    height: 27,
+                    top: 503,
+                    height: 40,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1694,30 +1685,76 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                 <p style={{ margin: 0, color: C.muted, fontSize: 13 }}>Tailor the invitation message for sharing with the Sangat.</p>
               </div>
 
-              {/* Event Title Preset Select */}
+              {/* Event Title Toggle Buttons */}
               <div>
                 <Label>Event Title</Label>
-                <select 
-                  value={titlePreset}
-                  onChange={(e) => setTitlePreset(Number(e.target.value))}
-                  style={{
-                    width: "100%",
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                  <button
+                    onClick={() => setTitlePreset(prev => {
+                      const options = [0, 1, 2, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + options.length - 1) % options.length];
+                    })}
+                    style={{
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 18,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    ◀
+                  </button>
+                  <div style={{
+                    flex: 1,
                     background: C.card,
                     border: `1px solid ${C.border}`,
                     borderRadius: 8,
                     padding: "10px 12px",
                     color: C.cream,
-                    fontSize: 14,
+                    fontSize: 13,
                     fontFamily: "var(--font-body)",
-                    outline: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  <option value={2}>Satsang Title ("{s?.title || "Satsang"}")</option>
-                  <option value={0}>Guruji's Satsang</option>
-                  <option value={1}>Guruji Ka Satsang</option>
-                  <option value={99}>Custom Title...</option>
-                </select>
+                    textAlign: "center",
+                    minHeight: "40px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    wordBreak: "break-word"
+                  }}>
+                    {titlePreset === 99 ? "Custom Title" : TITLE_PRESETS[titlePreset] || "Satsang"}
+                  </div>
+                  <button
+                    onClick={() => setTitlePreset(prev => {
+                      const options = [0, 1, 2, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + 1) % options.length];
+                    })}
+                    style={{
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 18,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    ▶
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
+                  Use the arrows to cycle the title shown on the invite. The current text previews directly above.
+                </div>
               </div>
 
               {/* Custom Title Input */}
@@ -1745,30 +1782,81 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                 </div>
               )}
 
-              {/* Preset Select */}
+              {/* Invite Message Toggle Buttons */}
               <div>
                 <Label>Invite Message Preset</Label>
-                <select 
-                  value={invitePreset}
-                  onChange={(e) => setInvitePreset(Number(e.target.value))}
-                  style={{
-                    width: "100%",
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
+                  <button
+                    onClick={() => setInvitePreset(prev => {
+                      const options = [0, 1, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + options.length - 1) % options.length];
+                    })}
+                    style={{
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 18,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      marginTop: "4px"
+                    }}
+                  >
+                    ◀
+                  </button>
+                  <div style={{
+                    flex: 1,
                     background: C.card,
                     border: `1px solid ${C.border}`,
                     borderRadius: 8,
                     padding: "10px 12px",
                     color: C.cream,
-                    fontSize: 14,
+                    fontSize: 12,
                     fontFamily: "var(--font-body)",
-                    outline: "none",
-                    cursor: "pointer"
-                  }}
-                >
-                  <option value={0}>Option 1 (Traditional/Polite)</option>
-                  <option value={1}>Option 2 (Warm Family Invite)</option>
-                  <option value={2}>Option 3 (Divine Evening invitation)</option>
-                  <option value={99}>Custom Message...</option>
-                </select>
+                    textAlign: "center",
+                    minHeight: "60px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    wordBreak: "break-word",
+                    lineHeight: 1.4
+                  }}>
+                    {invitePreset === 99 ? "Custom Message" : INVITE_PRESETS[invitePreset] || ""}
+                  </div>
+                  <button
+                    onClick={() => setInvitePreset(prev => {
+                      const options = [0, 1, 99];
+                      const idx = options.indexOf(prev);
+                      return options[(idx + 1) % options.length];
+                    })}
+                    style={{
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      color: C.cream,
+                      fontSize: 18,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      marginTop: "4px"
+                    }}
+                  >
+                    ▶
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.4 }}>
+                  Use the arrows to cycle the invitation message shown on the invite. The preview updates immediately, and the final export hides the controls.
+                </div>
               </div>
 
               {/* Custom Text Area */}
@@ -1777,8 +1865,8 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                   <Label>Custom Invite Message</Label>
                   <textarea
                     value={customInviteText}
-                    onChange={(e) => setCustomInviteText(e.target.value.slice(0, 150))}
-                    placeholder="Type your own custom invitation text here (max 150 chars)..."
+                    onChange={(e) => setCustomInviteText(e.target.value.slice(0, 250))}
+                    placeholder="Type your own custom invitation text here (max 250 chars)..."
                     rows={4}
                     style={{
                       width: "100%",
@@ -1795,7 +1883,7 @@ export default function DetailView({ satsangId, user, profile, nav, notify, onRe
                     }}
                   />
                   <div style={{ textAlign: "right", fontSize: 11, color: C.muted, marginTop: 4 }}>
-                    {customInviteText.length}/150 characters
+                    {customInviteText.length}/250 characters
                   </div>
                 </div>
               )}
