@@ -475,27 +475,22 @@ function AppInner() {
                 </button>
               ))}
               <div style={{ height: 1, background: "rgba(212,151,42,0.15)", margin: "4px 0" }} />
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  handleToggleTheme();
-                }}
+              <div
+                onClick={handleToggleTheme}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   width: "100%",
                   padding: "10px 14px",
-                  background: "none",
-                  border: "none",
                   borderRadius: 8,
                   color: C.cream,
                   fontSize: 14,
                   fontWeight: 500,
                   cursor: "pointer",
-                  textAlign: "left",
                   transition: "all 0.2s ease",
-                  fontFamily: "var(--font-headings)"
+                  fontFamily: "var(--font-headings)",
+                  userSelect: "none"
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "rgba(212, 151, 42, 0.12)";
@@ -506,9 +501,31 @@ function AppInner() {
                   e.currentTarget.style.color = C.cream;
                 }}
               >
-                <span>Theme: {theme === "dark" ? "Dark 🌙" : "Light ☀️"}</span>
-                <span>{theme === "dark" ? "☀️" : "🌙"}</span>
-              </button>
+                <span>Light Theme</span>
+                <div style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  background: theme === "light" ? C.gold : "rgba(120, 120, 128, 0.32)",
+                  position: "relative",
+                  transition: "background-color 0.2s ease",
+                  padding: 2,
+                  boxSizing: "border-box"
+                }}>
+                  <div style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "#ffffff",
+                    position: "absolute",
+                    left: 2,
+                    top: 2,
+                    transform: theme === "light" ? "translateX(20px)" : "translateX(0px)",
+                    transition: "transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+                  }} />
+                </div>
+              </div>
             </div>
           )}
         </div>
