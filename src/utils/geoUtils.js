@@ -202,7 +202,7 @@ export async function validateAddressWithGoogle({ addressLine1, addressLine2, ad
     const inputPostcode = postcode ? postcode.replace(/\s+/g, "").toUpperCase() : "";
     
     if (inputPostcode && geocodedPostcode) {
-      const matchesPostcode = geocodedPostcode.includes(inputPostcode) || inputPostcode.includes(geocodedPostcode);
+      const matchesPostcode = geocodedPostcode.startsWith(inputPostcode) || inputPostcode.startsWith(geocodedPostcode);
       if (!matchesPostcode) {
         return { 
           valid: false, 

@@ -24,10 +24,10 @@ import DivineVachanBanner from "./components/ui/DivineVachanBanner";
 // Glob optimized image imports (omitting deprecated raw BMPs)
 const gurujiImages = import.meta.glob("./assets/images/*.{png,jpg,jpeg,webp,JPG,JPEG}", { eager: true });
 const GURUJI_IMGS = Object.entries(gurujiImages)
+  .filter(([path]) => !path.includes("invite_bg") && !path.includes("guruji_portrait"))
   .sort(([pathA], [pathB]) => pathA.localeCompare(pathB))
   .map(([, module]) => module.default)
-  .filter(Boolean)
-  .slice(0, 12); // Limit to the first 12 images for faster page load
+  .filter(Boolean);
 
 export default function App() {
   return (
