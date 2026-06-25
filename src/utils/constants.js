@@ -120,31 +120,40 @@ export function normalizePhoneWithCountry(rawPhone, countryName) {
   if (!rawPhone) return "";
   let clean = rawPhone.trim().replace(/\s+/g, "").replace(/[-()]/g, "");
   
-  if (clean.startsWith("+")) {
-    return clean;
-  }
-  
-  const dialCode = COUNTRY_DIAL_CODES[countryName];
-  if (!dialCode) {
-    if (clean.startsWith("00")) {
-      return "+" + clean.slice(2);
-    }
-    return clean;
+  let hasPlus = clean.startsWith("+");
+  if (hasPlus) {
+    clean = clean.slice(1);
   }
   
   if (clean.startsWith("00")) {
-    return "+" + clean.slice(2);
+    clean = clean.slice(2);
+    hasPlus = true;
+  }
+  
+  const dialCodes = Object.values(COUNTRY_DIAL_CODES).sort((a, b) => b.length - a.length);
+  let dialCode = "";
+  
+  for (const code of dialCodes) {
+    if (clean.startsWith(code)) {
+      dialCode = code;
+      clean = clean.slice(code.length);
+      break;
+    }
+  }
+  
+  if (!dialCode && countryName) {
+    dialCode = COUNTRY_DIAL_CODES[countryName] || "";
   }
   
   if (clean.startsWith("0")) {
     clean = clean.slice(1);
   }
   
-  if (clean.startsWith(dialCode)) {
-    return "+" + clean;
+  if (dialCode) {
+    return `+${dialCode}${clean}`;
   }
   
-  return `+${dialCode}${clean}`;
+  return (hasPlus ? "+" : "") + clean;
 }
 
 export function estimateCountryFromTimezone() {

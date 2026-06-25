@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createUserProfile, updateUserGuests } from "../firebase/firestore";
 import { validateAddressWithGoogle } from "../utils/geoUtils";
 import { C, SANGAT_COUNTRIES, COUNTRY_PHONE_EXAMPLES, COUNTRY_DIAL_CODES, normalizePhoneWithCountry } from "../utils/constants";
@@ -8,6 +8,23 @@ import Btn from "../components/ui/Btn";
 import Empty from "../components/ui/Empty";
 
 export default function ProfileView({ user, profile, nav, notify }) {
+  const [waResetNotice, setWaResetNotice] = useState(() => {
+    const flag = sessionStorage.getItem("just_wa_logged_in");
+    return flag === "true";
+  });
+
+  useEffect(() => {
+    if (waResetNotice) {
+      sessionStorage.removeItem("just_wa_logged_in");
+      setTimeout(() => {
+        const pinCard = document.getElementById("secure-pin-card");
+        if (pinCard) {
+          pinCard.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 800);
+    }
+  }, [waResetNotice]);
+
   const [newGuestName, setNewGuestName] = useState("");
   const [newGuestRel, setNewGuestRel] = useState("Spouse");
   const [isChild, setIsChild] = useState(false);
@@ -76,30 +93,40 @@ export default function ProfileView({ user, profile, nav, notify }) {
 
   const handleSaveProfile = async () => {
     const targetCountry = editForm.country === "Other" ? editForm.customCountry.trim() : editForm.country;
-    if (!editForm.name.trim() || !editForm.phone.trim() || !editForm.addressLine1.trim() || !editForm.city.trim() || !editForm.postcode.trim() || !targetCountry) {
-      notify("Please fill all required fields", "err");
+    if (!editForm.name.trim() || !editForm.phone.trim() || !targetCountry) {
+      notify("Please fill all required fields (Name, Phone, Country)", "err");
       return;
     }
     setSaveBusy(true);
     try {
-      const valResult = await validateAddressWithGoogle({
-        addressLine1: editForm.addressLine1.trim(),
-        addressLine2: editForm.addressLine2.trim(),
-        addressLine3: editForm.addressLine3.trim(),
-        city: editForm.city.trim(),
-        state: editForm.state.trim(),
-        postcode: editForm.postcode.trim(),
-        country: targetCountry
-      });
-      
-      if (!valResult.valid) {
-        notify(valResult.error, "err");
-        setSaveBusy(false);
-        return;
+      let latitude = profile?.latitude || null;
+      let longitude = profile?.longitude || null;
+
+      if (editForm.addressLine1.trim() && editForm.city.trim() && editForm.postcode.trim()) {
+        try {
+          const valResult = await validateAddressWithGoogle({
+            addressLine1: editForm.addressLine1.trim(),
+            addressLine2: editForm.addressLine2.trim(),
+            addressLine3: editForm.addressLine3.trim(),
+            city: editForm.city.trim(),
+            state: editForm.state.trim(),
+            postcode: editForm.postcode.trim(),
+            country: targetCountry
+          });
+          
+          if (valResult.valid) {
+            latitude = valResult.lat || null;
+            longitude = valResult.lng || null;
+          } else {
+            notify("Address could not be validated, but details were saved. 🙏", "ok");
+          }
+        } catch (geoErr) {
+          console.warn("Google Address validation failed on profile edit, bypassing:", geoErr);
+        }
+      } else {
+        latitude = null;
+        longitude = null;
       }
-      
-      const latitude = valResult.lat || null;
-      const longitude = valResult.lng || null;
       
       const formattedPhone = normalizePhoneWithCountry(editForm.phone, targetCountry);
       
@@ -178,6 +205,43 @@ export default function ProfileView({ user, profile, nav, notify }) {
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 32px" }}>
       <h2 style={{ fontSize: 32, fontWeight: 700, color: C.cream, margin: "0 0 6px" }}>My Profile</h2>
       <p style={{ color: C.muted, marginBottom: 32 }}>Manage your basic personal details and register regular guests or children.</p>
+
+      {waResetNotice && (
+        <div style={{
+          background: "rgba(212,151,42,0.1)",
+          border: `1px solid ${C.gold}`,
+          borderRadius: 12,
+          padding: "16px 20px",
+          color: C.cream,
+          fontSize: 14,
+          lineHeight: 1.5,
+          marginBottom: 24,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6
+        }}>
+          <span style={{ color: C.gold, fontWeight: "bold", fontSize: 16 }}>🔑 WhatsApp Login Confirmed!</span>
+          <span>
+            Jai Guruji! You have logged in securely via WhatsApp. If you forgot your PIN or need to set one, please do so in the **Secure Account PIN** card below to enable quick direct login in the future. 🙏
+          </span>
+          <button 
+            onClick={() => setWaResetNotice(false)} 
+            style={{ 
+              alignSelf: "flex-start", 
+              background: "none", 
+              border: "none", 
+              color: C.gold, 
+              textDecoration: "underline", 
+              cursor: "pointer", 
+              padding: 0,
+              marginTop: 6,
+              fontWeight: "bold"
+            }}
+          >
+            Dismiss Notice
+          </button>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24, marginBottom: 24 }}>
         {/* Personal Details */}
@@ -683,7 +747,7 @@ export default function ProfileView({ user, profile, nav, notify }) {
         </div>
 
         {/* Secure Account PIN Card */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
+        <div id="secure-pin-card" style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, marginBottom: 12 }}>Secure Account PIN</div>
           <p style={{ color: C.muted, fontSize: 13, lineHeight: 1.5, margin: "0 0 16px 0" }}>
             Set up or update a 6-digit numerical PIN. You can use this PIN alongside your phone number to log in if you don't have WhatsApp or if the WhatsApp OTP delivery is offline.

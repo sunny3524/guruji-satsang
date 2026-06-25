@@ -15,8 +15,7 @@ import DashboardView from "./pages/DashboardView";
 import ProfileView from "./pages/ProfileView";
 import GuidelinesView from "./pages/GuidelinesView";
 import AdminView from "./pages/AdminView";
-import LoginView from "./pages/LoginView";
-import RegisterView from "./pages/RegisterView";
+import AuthView from "./pages/AuthView";
 
 // Shared UI Primitives
 import DivineVachanBanner from "./components/ui/DivineVachanBanner";
@@ -153,7 +152,7 @@ function AppInner() {
 
   const hasAuthNoProfile = user && !profile;
 
-  // Intercept users who are logged in (e.g. via Google or Custom Token) but have no profile doc in Firestore.
+  // Intercept users who are logged in (e.g. via Phone Auth or Custom Token) but have no profile doc in Firestore.
   // Force-redirect them to the register page to complete profile creation.
   useEffect(() => {
     if (hasAuthNoProfile && view !== "register") {
@@ -181,8 +180,7 @@ function AppInner() {
     : [
       { l: "Find Satsang", v: "find" },
       { l: "Guidelines", v: "guidelines" },
-      { l: "Login", v: "login" },
-      { l: "Join Sangat", v: "register", accent: true },
+      { l: "Login/Register", v: "login", accent: true },
     ];
 
   if (loading) {
@@ -554,8 +552,8 @@ function AppInner() {
 
       <main>
         {view === "home" && <HomeView nav={nav} upcoming={upcoming} user={user} heroImg={heroImg} gurujiImgs={GURUJI_IMGS} />}
-        {view === "login" && <LoginView nav={nav} notify={notify} ipCountry={ipCountry} />}
-        {view === "register" && <RegisterView nav={nav} notify={notify} user={user} ipCountry={ipCountry} />}
+        {view === "login" && <AuthView nav={nav} notify={notify} ipCountry={ipCountry} initialMode="login" />}
+        {view === "register" && <AuthView nav={nav} notify={notify} ipCountry={ipCountry} initialMode="register" />}
         {view === "find" && <FindView search={search} setSearch={setSearch} nav={nav} user={user} profile={profile} upcoming={upcoming} ipCoords={ipCoords} ipCity={ipCity} ipCountry={ipCountry} />}
         {view === "detail" && <DetailView satsangId={sel} user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}
         {view === "post" && <PostView user={user} profile={profile} nav={nav} notify={notify} onRefresh={loadUpcoming} />}

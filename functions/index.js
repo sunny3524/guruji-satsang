@@ -122,6 +122,10 @@ function getRandomVachan() {
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 async function sendMail(to, subject, html) {
+  if (!to || !to.includes("@")) {
+    console.warn(`[Mail service] Missing or invalid email address. Skipping email to: ${to}`);
+    return;
+  }
   const user = functions.config().email?.user || process.env.EMAIL_USER;
   const pass = functions.config().email?.pass || process.env.EMAIL_PASS;
   if (!user || !pass) {
@@ -1378,6 +1382,46 @@ function postRequest(urlStr, headers, body) {
   });
 }
 
+// Helper to generate variations of a phone number to prevent formatting conflicts
+function getPhoneVariations(phone) {
+  if (!phone) return [];
+  const clean = phone.trim().replace(/[^\d+]/g, "");
+  const variations = new Set();
+  
+  variations.add(clean);
+  
+  const withoutPlus = clean.startsWith("+") ? clean.slice(1) : clean;
+  const withPlus = clean.startsWith("+") ? clean : "+" + clean;
+  
+  variations.add(withoutPlus);
+  variations.add(withPlus);
+  
+  const dialCodes = [
+    "971", "353", "254", "973", "233", "352", "968", "974", "966",
+    "44", "91", "61", "64", "65", "27", "49", "33", "31", "41", "60",
+    "36", "62", "92", "34", "46", "66", "1"
+  ];
+  
+  const numWithoutPlus = clean.startsWith("+") ? clean.slice(1) : clean;
+  for (const code of dialCodes) {
+    if (numWithoutPlus.startsWith(code)) {
+      const national = numWithoutPlus.slice(code.length);
+      if (national.startsWith("0")) {
+        const stripped = code + national.slice(1);
+        variations.add(stripped);
+        variations.add("+" + stripped);
+      } else {
+        const padded = code + "0" + national;
+        variations.add(padded);
+        variations.add("+" + padded);
+      }
+      break;
+    }
+  }
+  
+  return Array.from(variations);
+}
+
 // ── Check Phone Availability (Uniqueness check) ─────────────────────────────────
 exports.checkPhoneAvailability = region.https.onCall(async (data) => {
   const { phone } = data || {};
@@ -1385,10 +1429,8 @@ exports.checkPhoneAvailability = region.https.onCall(async (data) => {
     throw new functions.https.HttpsError("invalid-argument", "Phone number is required");
   }
 
-  // Normalize number (E.164-like but keeping '+' if present)
-  const normalized = phone.trim().replace(/[^\d+]/g, "");
-
-  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  const variations = getPhoneVariations(phone);
+  const usersSnap = await db.collection("users").where("phone", "in", variations).limit(1).get();
   return { available: usersSnap.empty };
 });
 
@@ -1417,7 +1459,8 @@ exports.requestWhatsAppOTP = region.https.onCall(async (data) => {
   }
 
   // Check if phone number is registered
-  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  const variations = getPhoneVariations(phone);
+  const usersSnap = await db.collection("users").where("phone", "in", variations).limit(1).get();
   
   // ── Anti-Enumeration Guard ──
   // If the number is NOT registered, IMMEDIATELY return generic success response
@@ -1555,8 +1598,8 @@ exports.registerUserWithPhoneAndPIN = region.https.onCall(async (data) => {
     latitude, longitude, guests
   } = data || {};
 
-  if (!name || !email || !phone || !pin || !addressLine1 || !city || !postcode || !country) {
-    throw new functions.https.HttpsError("invalid-argument", "All mandatory profile fields and 6-digit PIN are required.");
+  if (!name || !phone || !pin) {
+    throw new functions.https.HttpsError("invalid-argument", "Name, phone number, and 6-digit PIN are required.");
   }
 
   if (pin.length !== 6 || isNaN(pin)) {
@@ -1564,31 +1607,38 @@ exports.registerUserWithPhoneAndPIN = region.https.onCall(async (data) => {
   }
 
   const normalizedPhone = phone.trim().replace(/[^\d+]/g, "");
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = email ? email.trim().toLowerCase() : "";
 
   // 1. Verify phone uniqueness
-  const phoneSnap = await db.collection("users").where("phone", "==", normalizedPhone).limit(1).get();
+  const variations = getPhoneVariations(phone);
+  const phoneSnap = await db.collection("users").where("phone", "in", variations).limit(1).get();
   if (!phoneSnap.empty) {
     throw new functions.https.HttpsError("already-exists", "This phone number is already registered with another Sangat profile! Please log in or check the number.");
   }
 
-  // 2. Verify email uniqueness in Firestore
-  const emailSnap = await db.collection("users").where("email", "==", normalizedEmail).limit(1).get();
-  if (!emailSnap.empty) {
-    throw new functions.https.HttpsError("already-exists", "This email address is already registered with another Sangat profile! Please log in or check the email.");
+  // 2. Verify email uniqueness in Firestore if provided
+  if (normalizedEmail) {
+    const emailSnap = await db.collection("users").where("email", "==", normalizedEmail).limit(1).get();
+    if (!emailSnap.empty) {
+      throw new functions.https.HttpsError("already-exists", "This email address is already registered with another Sangat profile! Please log in or check the email.");
+    }
   }
 
-  // 3. Create Firebase Auth user with a random secure password
+  // 3. Create Firebase Auth user with phone number and optional email
   const crypto = require("crypto");
   const randomPassword = crypto.randomBytes(24).toString("hex");
   
   let userRecord;
   try {
-    userRecord = await admin.auth().createUser({
-      email: normalizedEmail,
-      password: randomPassword,
+    const userParams = {
+      phoneNumber: normalizedPhone,
       displayName: name.trim()
-    });
+    };
+    if (normalizedEmail) {
+      userParams.email = normalizedEmail;
+      userParams.password = randomPassword; // Password only needed if email is set
+    }
+    userRecord = await admin.auth().createUser(userParams);
   } catch (err) {
     console.error("Auth user creation failed:", err);
     throw new functions.https.HttpsError("internal", `Failed to register user account: ${err.message}`);
@@ -1603,13 +1653,13 @@ exports.registerUserWithPhoneAndPIN = region.https.onCall(async (data) => {
       name: name.trim(),
       email: normalizedEmail,
       phone: normalizedPhone,
-      addressLine1: addressLine1.trim(),
+      addressLine1: addressLine1 ? addressLine1.trim() : "",
       addressLine2: addressLine2 ? addressLine2.trim() : "",
       addressLine3: addressLine3 ? addressLine3.trim() : "",
       state: state ? state.trim() : "",
-      city: city.trim(),
-      postcode: postcode.trim(),
-      country: country.trim(),
+      city: city ? city.trim() : "",
+      postcode: postcode ? postcode.trim() : "",
+      country: country ? country.trim() : "",
       latitude: latitude || null,
       longitude: longitude || null,
       guests: guests || [],
@@ -1650,7 +1700,8 @@ exports.loginWithPhoneAndPIN = region.https.onCall(async (data) => {
   const inputPinHash = crypto.createHash("sha256").update(pin.trim()).digest("hex");
 
   // Query users where phone matches
-  const usersSnap = await db.collection("users").where("phone", "==", normalizedPhone).limit(1).get();
+  const variations = getPhoneVariations(phone);
+  const usersSnap = await db.collection("users").where("phone", "in", variations).limit(1).get();
 
   // Anti-Enumeration generic error
   const genericError = "Invalid phone number or PIN. If you have not set up your PIN yet, please log in using the WhatsApp OTP option to set your PIN on the Profile page.";
@@ -1728,8 +1779,9 @@ exports.migrateUserProfileToPhoneUID = region.https.onCall(async (data, context)
 
   try {
     // 1. Query users collection by phone for any document where doc.id != newUid
+    const variations = getPhoneVariations(phone);
     const usersSnap = await db.collection("users")
-      .where("phone", "==", normalizedPhone)
+      .where("phone", "in", variations)
       .limit(1)
       .get();
 
@@ -1832,7 +1884,8 @@ exports.requestWhatsAppOTPForRegistration = region.https.onCall(async (data) => 
   const normalized = phone.trim().replace(/[^\d+]/g, "");
 
   // Check if phone number is already registered in Firestore
-  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  const variations = getPhoneVariations(phone);
+  const usersSnap = await db.collection("users").where("phone", "in", variations).limit(1).get();
   if (!usersSnap.empty) {
     throw new functions.https.HttpsError("already-exists", "This phone number is already registered with another profile.");
   }
@@ -1942,7 +1995,8 @@ exports.registerUserWithWhatsAppOTP = region.https.onCall(async (data, context) 
   }
 
   // Verify phone is not registered (double check)
-  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  const variations = getPhoneVariations(phone);
+  const usersSnap = await db.collection("users").where("phone", "in", variations).limit(1).get();
   if (!usersSnap.empty) {
     const existingUserDoc = usersSnap.docs[0];
     if (!context.auth || existingUserDoc.id !== context.auth.uid) {
@@ -1956,11 +2010,14 @@ exports.registerUserWithWhatsAppOTP = region.https.onCall(async (data, context) 
 
     if (!targetUid) {
       // 1. Create a Firebase Auth user
-      const userRecord = await admin.auth().createUser({
+      const userParams = {
         phoneNumber: normalized,
-        email: profile.email.trim(),
         displayName: profile.name.trim()
-      });
+      };
+      if (profile.email && profile.email.trim()) {
+        userParams.email = profile.email.trim();
+      }
+      const userRecord = await admin.auth().createUser(userParams);
       targetUid = userRecord.uid;
     } else {
       // For Google users, link or set their phone number in Firebase Auth (best effort)
@@ -1982,16 +2039,16 @@ exports.registerUserWithWhatsAppOTP = region.https.onCall(async (data, context) 
 
     // 2. Create the Firestore user profile
     await db.collection("users").doc(targetUid).set({
-      email: profile.email.trim(),
+      email: profile.email ? profile.email.trim() : "",
       name: profile.name.trim(),
       phone: normalized,
-      addressLine1: profile.addressLine1.trim(),
+      addressLine1: profile.addressLine1 ? profile.addressLine1.trim() : "",
       addressLine2: profile.addressLine2 ? profile.addressLine2.trim() : "",
       addressLine3: profile.addressLine3 ? profile.addressLine3.trim() : "",
       state: profile.state ? profile.state.trim() : "",
-      city: profile.city.trim(),
-      postcode: profile.postcode.trim(),
-      country: profile.country.trim(),
+      city: profile.city ? profile.city.trim() : "",
+      postcode: profile.postcode ? profile.postcode.trim() : "",
+      country: profile.country ? profile.country.trim() : "",
       latitude: profile.latitude || null,
       longitude: profile.longitude || null,
       guests: profile.guests || [],
@@ -2123,7 +2180,8 @@ exports.requestWhatsAppLoginWords = region.https.onCall(async (data) => {
   const normalized = normalizePhoneNumber(phone);
 
   // Check if phone number is registered
-  const usersSnap = await db.collection("users").where("phone", "==", normalized).limit(1).get();
+  const variations = getPhoneVariations(phone);
+  const usersSnap = await db.collection("users").where("phone", "in", variations).limit(1).get();
   if (usersSnap.empty) {
     throw new functions.https.HttpsError("not-found", "This phone number is not registered. Redirecting to registration... 🙏");
   }
