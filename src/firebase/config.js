@@ -10,7 +10,7 @@ import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCPmzH9kKoqzf4hOQgmJHx85k7bKPZE9cg",
-  authDomain: "gurujisatsangs.com",
+  authDomain: "guruji-satsang-b650a.firebaseapp.com",
   projectId: "guruji-satsang-b650a",
   storageBucket: "guruji-satsang-b650a.firebasestorage.app",
   messagingSenderId: "668074740281",
