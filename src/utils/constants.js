@@ -104,6 +104,7 @@ export const GUIDELINES = [
       "Gurbani Shabad & Bhajans (~1 Hour 30 Mins): This phase is dedicated to deep, inward reflection. Play only divine Shabads selected by Guruji Maharaj himself or specific devotional bhajans authorized and played at Bade Mandir are permitted. The volume should be kept at an optimum level to facilitate meditation.",
       "Mantra Jaap (~ 10-15 Minutes): The entire sangat joins in collective, synchronized chanting of Guruji's powerful Mantra Jaap: \"Om Namah Shivay Shivji Sada Sahay, Om Namah Shivay Guruji Sada Sahay\"",
       "Guruji's Aarti (~10 Minutes): The satsang culminates with closing prayers and the Shivji Aarti. Devotees stand in absolute reverence, and minimal flower petals or small Bhog (sweets) may be offered.",
+      "Satsang Sharing (~15-30 Minutes): Members of the sangat are invited to share their personal experiences, blessings, and expressions of love for Guruji. Speakers should speak clearly, keep their accounts focused strictly on their own experiences and Guruji's grace, and maintain humility without extending into socializing.",
       "Distribution of Prasadam (Final Phase): The sacred distribution flows in a precise, traditional sequence. Devotees remain seated while Sewadars respectfully serve Jal Prasad (blessed water), Chai Prasad (blessed herbal tea), and finally, the wholesome Langar Prasad."
     ]
   },
