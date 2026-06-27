@@ -109,13 +109,21 @@ export const GUIDELINES = [
     ]
   },
   {
-    icon: "🔇", title: "Conduct & Discipline", items: [
-      "Switch off or silence all mobile phones before entering the Satsang hall.",
-      "Maintain noble silence throughout. The direct connection with Guruji is built through silent meditation.",
-      "Do not socialise or greet the host during the Satsang — reserve all greetings until after.",
-      "Wear modest, clean and respectable clothing to Satsang.",
-      "Do not touch Guruji's Swaroop or Charans physically — direct bowing from a respectful distance is custom.",
-      "Women should cover their heads with a dupatta/scarf, and men are also encouraged to keep heads covered as a mark of respect.",
+    icon: "🔇",
+    title: "Conduct & Discipline",
+    description: "Guruji emphasized that satsangs are a place for cleansing the soul, not for socializing. The environment must remain a silent, meditative sanctuary.",
+    items: [
+      "Total Silence & No Socializing: Devotees must refrain from greetings (\"Hi/Hello\"), chatting, or whispering upon arrival, during service, or during Langar. True connection with Guruji is built individually through silent meditation. Greet the host only after the entire satsang concludes.",
+      "Device Blackout: Mobile phones must be completely switched off or put on strict silent mode before entering the hall. Photography or videography of the Darbar during the session is strictly forbidden.",
+      "Child Discipline: Parents bringing children must ensure they remain seated beside them quietly. Children are strictly restricted from doing Sewa (serving), and no children are allowed near the kitchen area for safety and decorum.",
+      "Punctuality & Etiquette: Devotees should arrive 15 minutes prior. Latecomers must sit quietly in the back rows to minimize disruption and avoid disturbing others who are in deep meditation.",
+      "Dress Code: Wear modest, clean, and respectable clothing to Satsang. Women should cover their heads with a dupatta/scarf, and men are also encouraged to keep heads covered as a mark of respect.",
+      "Darbar Etiquette: Do not touch Guruji's Swaroop or Charans physically — direct bowing from a respectful distance is the custom.",
+      "The Sanctity of Prasadam: Jal, Chai, and Langar Prasad carry immense divine blessings. Every single drop and crumb must be consumed; leaving leftovers on the plate or wasting Prasad is strictly forbidden.",
+      "No Packaging or Takeaways: Langar must be eaten at the venue. Packing leftover Langar Prasad to take home is prohibited unless explicitly offered by the host for an ailing family member or elderly person at home.",
+      "Sewa Conduct: Sewadars must be exceptionally humble, quiet, and polite. Sewa should be executed gracefully by family members or the sangat—never handed over to domestic help or servants who are unaware of Guruji's customs.",
+      "Immediate Departure (Aagya): After consuming Langar Prasad, devotees should bow to the Darbar, take Aagya (permission to leave) from GuruJi, and head straight back home to retain the divine vibrations of the satsang, avoiding post-event gossip.",
+      "No Commercial or Business Activities: Promotional material, business networking, or financial collections during or around the satsang are strictly forbidden."
     ]
   }
 ];
