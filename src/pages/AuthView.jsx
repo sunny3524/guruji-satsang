@@ -1079,7 +1079,7 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
 
       {/* SIGNUP STEP 1: Basic Info Screen */}
       {mode === "signup-basic" && (
-        <FWrap title="Let's Know You" sub="Step 1 of 5: Please provide your name and optional email">
+        <FWrap title="New Sangat Registration" sub="Step 1 of 5: Let's create your profile details">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <button
               onClick={() => setMode("phone-entry")}
@@ -1097,6 +1097,19 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
             >
               ← Back to phone entry
             </button>
+
+            <div style={{
+              background: "rgba(212,151,42,0.06)",
+              border: `1px solid rgba(212,151,42,0.25)`,
+              borderRadius: 8,
+              padding: "11px 14px",
+              fontSize: 13,
+              lineHeight: "1.5",
+              color: C.cream,
+              marginBottom: 4
+            }}>
+              ✨ <strong>New Phone Number:</strong> We couldn't find an existing profile for your number. Let's register your new Sangat account! 🙏
+            </div>
 
             <FField label="Full Name *" v={name} on={e => setName(e.target.value)} ph="e.g. Rajiv Aggarwal" />
             <FField label="Email Address (Optional)" type="email" v={email} on={e => setEmail(e.target.value)} ph="e.g. name@example.com" />
