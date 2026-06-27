@@ -205,7 +205,7 @@ exports.onUserCreated = region.firestore
           You can now find Satsangs near you, register to attend, offer Seva, and host your own Satsangs.
         </p>
         <p style="color:#c0a878;line-height:1.8;">
-          Please take a moment to read the <strong style="color:#d4972a;">Satsang Guidelines</strong> 
+          Please take a moment to read the <a href="https://gurujisatsangs.com/#/guidelines" style="color:#d4972a; font-weight:bold; text-decoration:underline;">Satsang Guidelines</a> 
           in the app so that every Darbar is kept with the discipline and devotion Guruji always taught.
         </p>
         <p style="color:#9c7050;font-size:13px;margin-top:24px;font-style:italic;">
