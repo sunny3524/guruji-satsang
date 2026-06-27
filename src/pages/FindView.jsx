@@ -429,50 +429,17 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
           </div>
         )}
 
-        {/* Approximate IP Location Notice for hosts without address in profile */}
-        {profile && !(profile.postcode || profile.city || profile.addressLine1) && !activeSearch && (
-          <div style={{
-            background: "rgba(212, 151, 42, 0.04)",
-            border: `1px dashed rgba(212, 151, 42, 0.25)`,
-            borderRadius: 8,
-            padding: "12px 14px",
-            fontSize: 13,
-            lineHeight: "1.6",
-            color: C.cream,
-            marginBottom: 12
-          }}>
-            📍 <strong>Showing search results based on approximate location (estimated via IP).</strong>{" "}
-            Add your home address to your profile for hassle-free hosting and finding Satsangs near you.{" "}
-            <button
-              type="button"
-              onClick={() => nav("profile")}
-              style={{
-                background: "none",
-                border: "none",
-                color: C.gold,
-                fontWeight: "bold",
-                cursor: "pointer",
-                padding: 0,
-                fontSize: 13,
-                textDecoration: "underline",
-                display: "inline-block"
-              }}
-            >
-              Click here to add your profile address →
-            </button>
-          </div>
-        )}
-
         {/* Location Status Message & Info */}
         {(userCoords || geoError || isGeocodingProfile) && !activeSearch && (
           <div style={{
             fontSize: 13,
             color: geoError ? C.saffron : C.muted,
             display: "flex",
-            alignItems: "center",
+            flexDirection: "column",
+            alignItems: "flex-start",
             gap: 6,
             background: "rgba(0,0,0,0.15)",
-            padding: "8px 14px",
+            padding: "10px 14px",
             borderRadius: 8,
             borderLeft: `3px solid ${geoError ? C.saffron : C.gold}`
           }}>
@@ -481,31 +448,56 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
             ) : geoError ? (
               <span>⚠️ {geoError}</span>
             ) : (
-              <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexWrap: "wrap", gap: 8 }}>
-                <span>
-                  Proximity sequencing active based on <strong style={{ color: C.gold }}>{locationLabel}</strong>.
+              <>
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexWrap: "wrap", gap: 8 }}>
+                  <span>
+                    Proximity sequencing active based on <strong style={{ color: C.gold }}>{locationLabel}</strong>.
+                  </span>
+                  {userCoords && (
+                    <button
+                      onClick={() => {
+                        setUserCoords(null);
+                        setLocationLabel("");
+                        setGeoError(null);
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: C.saffron,
+                        cursor: "pointer",
+                        fontSize: 12,
+                        textDecoration: "underline",
+                        padding: 0
+                      }}
+                    >
+                      Clear location
+                    </button>
+                  )}
                 </span>
-                {userCoords && (
-                  <button
-                    onClick={() => {
-                      setUserCoords(null);
-                      setLocationLabel("");
-                      setGeoError(null);
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: C.saffron,
-                      cursor: "pointer",
-                      fontSize: 12,
-                      textDecoration: "underline",
-                      padding: 0
-                    }}
-                  >
-                    Clear location
-                  </button>
+                {profile && !(profile.postcode || profile.city || profile.addressLine1) && (
+                  <span style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                    Add your home address to your{" "}
+                    <button
+                      type="button"
+                      onClick={() => nav("profile")}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: C.gold,
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        padding: 0,
+                        fontSize: 12,
+                        textDecoration: "underline",
+                        display: "inline"
+                      }}
+                    >
+                      profile
+                    </button>{" "}
+                    for hassle-free hosting and finding Satsangs near you.
+                  </span>
                 )}
-              </span>
+              </>
             )}
           </div>
         )}
