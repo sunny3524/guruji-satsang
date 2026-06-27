@@ -1236,7 +1236,7 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
               type="text"
               v={otpCode}
               on={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              ph="e.g. 123456"
+              ph="• • • • • •"
               disabled={busy}
               style={{ textAlign: "center", fontSize: 20, letterSpacing: "0.2em", fontWeight: "bold" }}
             />
@@ -1461,7 +1461,7 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
                   maxLength={6}
                   value={signupPin}
                   onChange={e => setSignupPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="e.g. 123456"
+                  placeholder="• • • • • •"
                   style={{
                     width: "100%",
                     background: C.card,
@@ -1489,7 +1489,7 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
                   maxLength={6}
                   value={signupConfirmPin}
                   onChange={e => setSignupConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="e.g. 123456"
+                  placeholder="• • • • • •"
                   style={{
                     width: "100%",
                     background: C.card,
