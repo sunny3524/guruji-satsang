@@ -111,6 +111,11 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
     if (prefilledPhone) {
       setPhone(prefilledPhone);
       setPhonePrefix(prefilledPrefix || "+44");
+      if (initialMode === "login") {
+        setMode("login-pin");
+      } else {
+        setMode("signup-basic");
+      }
       sessionStorage.removeItem("prefill_phone");
       sessionStorage.removeItem("prefill_phone_prefix");
     }
@@ -123,7 +128,7 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
       setName(auth.currentUser.displayName || "");
       setMode("signup-basic");
     }
-  }, []);
+  }, [initialMode]);
 
   // 3. Clean up reCAPTCHA verifier on unmount
   useEffect(() => {
@@ -272,15 +277,26 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
       
       if (phoneCheckRes.data.available) {
         // Unregistered! Go to guided signup wizard
-        setMode("signup-basic");
+        if (initialMode === "login") {
+          sessionStorage.setItem("prefill_phone", phone);
+          sessionStorage.setItem("prefill_phone_prefix", phonePrefix);
+          nav("register");
+        } else {
+          setMode("signup-basic");
+        }
       } else {
         // Registered! Move to PIN login
-        setMode("login-pin");
+        if (initialMode === "register") {
+          sessionStorage.setItem("prefill_phone", phone);
+          sessionStorage.setItem("prefill_phone_prefix", phonePrefix);
+          nav("login");
+        } else {
+          setMode("login-pin");
+        }
       }
     } catch (e) {
       notify(e.message.replace("Firebase:", "").trim(), "err");
     }
-    setBusy(true); // Wait, let's keep busy until transition is smooth or clear it:
     setBusy(false);
   };
 
