@@ -178,7 +178,7 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
       <FField label="Description" v={f.description} on={set("description")} ph="Brief description…" />
       
       {/* Auto-populate Profile Address Option */}
-      {profile && (profile.addressLine1 || profile.city) && (
+      {profile && (profile.addressLine1 || profile.city) ? (
         <div style={{
           marginBottom: 20,
           display: "flex",
@@ -200,6 +200,40 @@ export default function PostView({ user, profile, nav, notify, onRefresh }) {
             Use my profile address as the Satsang venue
           </label>
         </div>
+      ) : (
+        profile && (
+          <div style={{
+            marginBottom: 20,
+            background: "rgba(212, 151, 42, 0.04)",
+            border: `1px dashed rgba(212, 151, 42, 0.25)`,
+            borderRadius: 8,
+            padding: "14px 16px",
+            fontSize: 13,
+            lineHeight: "1.6",
+            color: C.cream
+          }}>
+            <strong>Hosting made easy!</strong> You haven't added an address to your profile yet. 
+            Adding your home address to your profile lets you quickly auto-populate the venue details 
+            whenever you host, and helps you find other Satsangs near you.{" "}
+            <button
+              type="button"
+              onClick={() => nav("profile")}
+              style={{
+                background: "none",
+                border: "none",
+                color: C.gold,
+                fontWeight: "bold",
+                cursor: "pointer",
+                padding: 0,
+                fontSize: 13,
+                textDecoration: "underline",
+                display: "inline-block"
+              }}
+            >
+              Click here to add your profile address →
+            </button>
+          </div>
+        )
       )}
 
       {/* Country Select */}
