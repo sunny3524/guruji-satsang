@@ -78,31 +78,35 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
   useEffect(() => {
     let active = true;
     async function initLocation() {
+      let queryStr = "";
       if (profile) {
-        // Logged-in: geocode profile location
         const queryParts = [];
         if (profile.postcode) queryParts.push(profile.postcode);
         if (profile.city) queryParts.push(profile.city);
+        queryStr = queryParts.join(" ").trim();
+      }
 
-        const queryStr = queryParts.join(" ").trim();
-        if (!queryStr) return;
+      if (queryStr) {
         setIsGeocodingProfile(true);
         try {
           const coords = await geocodeLocation(queryStr);
           if (coords && active) {
             setUserCoords(coords);
             setLocationLabel(`profile location (${profile.postcode || profile.city})`);
+            return;
           }
         } catch (err) {
           console.warn("Could not geocode profile location", err);
         } finally {
           if (active) setIsGeocodingProfile(false);
         }
-      } else if (ipCoords) {
+      }
+
+      // Fallback: If logged out, or logged in but has no profile address (or geocoding failed)
+      if (ipCoords) {
         setUserCoords(ipCoords);
         setLocationLabel(`approximate location (${ipCity || ipCountry || "estimated via IP"})`);
       } else {
-        // Logged-out: estimate approximate location via IP Geolocation API fallback
         try {
           const res = await fetch("https://ipapi.co/json/");
           const data = await res.json();
@@ -422,6 +426,40 @@ export default function FindView({ search, setSearch, nav, user, profile, upcomi
             borderLeft: `3px solid ${C.red}`
           }}>
             <span>⚠️ {searchError}</span>
+          </div>
+        )}
+
+        {/* Approximate IP Location Notice for hosts without address in profile */}
+        {profile && !(profile.postcode || profile.city || profile.addressLine1) && !activeSearch && (
+          <div style={{
+            background: "rgba(212, 151, 42, 0.04)",
+            border: `1px dashed rgba(212, 151, 42, 0.25)`,
+            borderRadius: 8,
+            padding: "12px 14px",
+            fontSize: 13,
+            lineHeight: "1.6",
+            color: C.cream,
+            marginBottom: 12
+          }}>
+            📍 <strong>Showing search results based on approximate location (estimated via IP).</strong>{" "}
+            Add your home address to your profile for hassle-free hosting and finding Satsangs near you.{" "}
+            <button
+              type="button"
+              onClick={() => nav("profile")}
+              style={{
+                background: "none",
+                border: "none",
+                color: C.gold,
+                fontWeight: "bold",
+                cursor: "pointer",
+                padding: 0,
+                fontSize: 13,
+                textDecoration: "underline",
+                display: "inline-block"
+              }}
+            >
+              Click here to add your profile address →
+            </button>
           </div>
         )}
 
