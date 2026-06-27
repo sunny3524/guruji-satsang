@@ -85,7 +85,7 @@ export default function GuidelinesView() {
                     const colonIndex = item.indexOf(":");
                     let renderedContent;
 
-                    if (colonIndex !== -1 && colonIndex < 35) {
+                    if (colonIndex !== -1 && colonIndex < 50) {
                       const header = item.substring(0, colonIndex);
                       const body = item.substring(colonIndex + 1);
                       renderedContent = (
