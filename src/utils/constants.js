@@ -96,15 +96,15 @@ export const GUIDELINES = [
     ]
   },
   {
-    icon: "⏰", title: "Timings & Order of Service", items: [
-      "Begin punctually at the stated time — do not wait for late arrivals. Discipline in timings is Guruji's teaching.",
-      "Offer Jal Prasad (water) to all sangat at the entrance on arrival.",
-      "Shabad Gurbani should be played for 90–120 minutes, including Mantra Jaap and Aarti.",
-      "Chai Prasad and snack prasad should be served in 15-minute intervals, no more than 4 times, finishing 30 minutes before the Satsang ends.",
-      "Mantra Jaap is followed by Shivji Ki Aarti (approximately 5 minutes).",
-      "Satsang sharing follows the Aarti. If it exceeds 30 minutes, begin serving Langar Prasad alongside.",
-      "Kada Prasad is served after Satsang sharing, preferably placed in hands.",
-      "All sangat should take Aagya from Guruji and head home directly after Langar Prasad.",
+    icon: "⏰",
+    title: "Timings & Order of Service",
+    description: "An authentic house satsang is a structured, disciplined spiritual journey designed to mirror the sacred protocols of Bade Mandir. It is suggested that the entire satsang spans 2 hours.",
+    items: [
+      "Punctual Commencement: The satsang begins exactly at the scheduled time. The path to the Darbar is cleared, the Jyoti (holy lamp) is lit, and the satsangs starts by playing the Welcome Band followed by Ek Onkar. Do not play the welcome band on Maha Samadhi Satsang.",
+      "Gurbani Shabad & Bhajans (~1 Hour 30 Mins): This phase is dedicated to deep, inward reflection. Play only divine Shabads selected by Guruji Maharaj himself or specific devotional bhajans authorized and played at Bade Mandir are permitted. The volume should be kept at an optimum level to facilitate meditation.",
+      "Mantra Jaap (~ 10-15 Minutes): The entire sangat joins in collective, synchronized chanting of Guruji's powerful Mantra Jaap: \"Om Namah Shivay Shivji Sada Sahay, Om Namah Shivay Guruji Sada Sahay\"",
+      "Guruji's Aarti (~10 Minutes): The satsang culminates with closing prayers and the Shivji Aarti. Devotees stand in absolute reverence, and minimal flower petals or small Bhog (sweets) may be offered.",
+      "Distribution of Prasadam (Final Phase): The sacred distribution flows in a precise, traditional sequence. Devotees remain seated while Sewadars respectfully serve Jal Prasad (blessed water), Chai Prasad (blessed herbal tea), and finally, the wholesome Langar Prasad."
     ]
   },
   {
