@@ -274,7 +274,7 @@ function AppInner() {
             onError={e => { e.target.style.display = "none"; }}
           />
           <span style={{ textAlign: "left" }}>
-            <span style={{ display: "block", fontSize: 17, fontWeight: 700, color: C.gold, letterSpacing: "0.02em" }}>Guruji Satsang App</span>
+            <span style={{ display: "block", fontSize: 17, fontWeight: 700, color: C.gold, letterSpacing: "0.02em" }}>Guruji Satsangs App</span>
             <span style={{ display: "block", fontSize: 9, color: C.muted, letterSpacing: "0.2em", fontFamily: "sans-serif" }}>Jai Guruji</span>
           </span>
         </button>
@@ -636,7 +636,7 @@ function AppInner() {
         </div>
         
         <div style={{ fontSize: 13, color: C.muted }}>
-          Guruji Satsang · Built with devotion & seva
+          Guruji Satsangs · Built with devotion & seva
         </div>
       </footer>
     </div>

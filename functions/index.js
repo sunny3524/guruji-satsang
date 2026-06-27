@@ -25,7 +25,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM = `"Guruji Satsang" <${functions.config().email?.user || "noreply@gurujisatsang.com"}>`;
+const FROM = `"Guruji Satsangs" <${functions.config().email?.user || "noreply@gurujisatsang.com"}>`;
 const region = functions.region("europe-west2");
 
 const GURUJI_VACHANS = [
@@ -191,7 +191,7 @@ exports.onUserCreated = region.firestore
 
     await sendMail(
       user.email,
-      "🙏 Welcome to Guruji Satsang — Jai Guruji!",
+      "🙏 Welcome to Guruji Satsangs — Jai Guruji!",
       `
       <div style="background:#1a0800;color:#f5e8d0;font-family:Georgia,serif;padding:32px;max-width:560px;margin:auto;border-radius:12px;">
         <div style="text-align:center;margin-bottom:24px;">
@@ -201,7 +201,7 @@ exports.onUserCreated = region.firestore
         </div>
         <h2 style="color:#d4972a;">Jai Guruji, ${user.name}!</h2>
         <p style="color:#c0a878;line-height:1.8;">
-          You have been registered with the Guruji Satsang platform. 
+          You have been registered with the Guruji Satsangs platform. 
           You can now find Satsangs near you, register to attend, offer Seva, and host your own Satsangs.
         </p>
         <p style="color:#c0a878;line-height:1.8;">
@@ -1492,12 +1492,12 @@ exports.requestWhatsAppOTP = region.https.onCall(async (data) => {
   const templates = [
     `Jai Guruji 🙏 Your Guruji Sangat App verification code is: ${code}. Valid for 5 minutes.`,
     `Jai Guruji 🙏 Use code ${code} to log securely into the Guruji Sangat App. It expires in 5 minutes.`,
-    `Aum Namah Shivay 🙏 Please enter ${code} to verify your number on the Guruji Satsang App. This code is valid for 5 minutes.`,
-    `Jai Guruji 🙏 Your secure access code is ${code}. Enter this on the Guruji Satsang app within 5 minutes.`,
+    `Aum Namah Shivay 🙏 Please enter ${code} to verify your number on the Guruji Satsangs App. This code is valid for 5 minutes.`,
+    `Jai Guruji 🙏 Your secure access code is ${code}. Enter this on the Guruji Satsangs app within 5 minutes.`,
     `Shukrana Guruji 🙏 Use verification code ${code} to complete your login. Valid for 5 minutes.`,
     `Jai Guruji 🙏 Verification code: ${code}. Please enter this code in the Guruji Sangat App to verify your identity. Valid for 5 minutes.`,
     `Guruji Sangat verification: ${code}. Enter this code on the login page to continue. Expires in 5 minutes. Jai Guruji 🙏`,
-    `Aum Namah Shivay 🙏 Verification OTP: ${code} is your code for Guruji Satsang App login. Do not share.`,
+    `Aum Namah Shivay 🙏 Verification OTP: ${code} is your code for Guruji Satsangs App login. Do not share.`,
     `Jai Guruji Maharaj 🙏 Code ${code} is your secure login verification code. Valid for 5 minutes.`,
     `Shukrana Guruji 🙏 Secure code: ${code}. Use it on the Guruji Sangat App. Valid for 5 minutes.`
   ];
@@ -1920,10 +1920,10 @@ exports.requestWhatsAppOTPForRegistration = region.https.onCall(async (data) => 
     `Jai Guruji 🙏 Your Guruji Sangat App registration code is: ${code}. Valid for 5 minutes.`,
     `Jai Guruji 🙏 Use code ${code} to verify your phone number and register on the Guruji Sangat App.`,
     `Aum Namah Shivay 🙏 Verification code: ${code}. Please enter this code to complete your registration.`,
-    `Jai Guruji 🙏 Register on the Guruji Satsang App using code: ${code}. Expires in 5 minutes.`,
+    `Jai Guruji 🙏 Register on the Guruji Satsangs App using code: ${code}. Expires in 5 minutes.`,
     `Shukrana Guruji 🙏 Registration verification code: ${code}. Welcome to the Sangat.`,
     `Jai Guruji Maharaj 🙏 To complete your Sangat profile, verify with code: ${code}. Valid for 5 mins.`,
-    `Aum Namah Shivay 🙏 Registration OTP: ${code}. Enter this to activate your profile on Guruji Satsang.`,
+    `Aum Namah Shivay 🙏 Registration OTP: ${code}. Enter this to activate your profile on Guruji Satsangs.`,
     `Jai Guruji 🙏 Your phone registration code is: ${code}. Valid for 5 minutes.`,
     `Shukrana Guruji 🙏 Enter code ${code} to complete your register flow on the Sangat portal.`,
     `Jai Guruji 🙏 Account registration code: ${code}. Do not share this OTP. Expires in 5 minutes.`
@@ -2284,7 +2284,7 @@ async function handleIncomingWhatsAppMessage(rawSenderPhone, msgBody, phoneNumbe
     await sendWhatsAppMessage(
       phoneNumberId,
       rawSenderPhone,
-      "🙏 Jai Guruji! To log into your Guruji Satsang account, please send the exact 3-word code shown on your screen in this format:\n\n*Login: word1 word2 word3*"
+      "🙏 Jai Guruji! To log into your Guruji Satsangs account, please send the exact 3-word code shown on your screen in this format:\n\n*Login: word1 word2 word3*"
     );
     return;
   }
