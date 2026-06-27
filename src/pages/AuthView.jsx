@@ -466,6 +466,42 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
     setGuests(prev => prev.filter(g => g.id !== id));
   };
 
+  const handleSignupAddressNext = async () => {
+    const hasAddress = addressLine1.trim() || addressLine2.trim() || city.trim() || state.trim() || postcode.trim();
+    if (!hasAddress) {
+      setMode("signup-pin");
+      return;
+    }
+
+    if (!addressLine1.trim() || (!city.trim() && !postcode.trim())) {
+      notify("Please provide at least Address Line 1 and City or Postal Code, or clear all fields to skip.", "err");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const queryParts = [addressLine1.trim(), city.trim(), state.trim(), postcode.trim()].filter(Boolean);
+      const fullAddress = queryParts.join(", ");
+      
+      const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullAddress)}&format=json&limit=1`;
+      const res = await fetch(osmUrl, { headers: { 'User-Agent': 'GurujiSatsangApp/1.0' } });
+      const data = await res.json();
+      
+      if (!data || data.length === 0) {
+        notify("Could not validate address via OpenStreetMap. Please check for typos.", "err");
+        setBusy(false);
+        return;
+      }
+      
+      notify("Address verified successfully! 🙏", "ok");
+      setMode("signup-pin");
+    } catch (e) {
+      console.warn("Address validation error:", e);
+      setMode("signup-pin");
+    }
+    setBusy(false);
+  };
+
   // Final Signup Submission
   const handleFinalSubmit = async () => {
     if (!signupPin || signupPin.length !== 6 || isNaN(signupPin)) {
@@ -1366,24 +1402,10 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
 
             <FField label="State / Region" v={state} on={e => setState(e.target.value)} ph="e.g. Punjab" />
 
-            <div style={{ display: "flex", gap: 12, marginTop: 15 }}>
-              <Btn onClick={() => setMode("signup-pin")} full>
-                Next Step →
+            <div style={{ display: "flex", marginTop: 15 }}>
+              <Btn onClick={handleSignupAddressNext} disabled={busy} full>
+                {(addressLine1.trim() || addressLine2.trim() || city.trim() || state.trim() || postcode.trim()) ? "Save and Next →" : "Skip Step"}
               </Btn>
-              <button
-                onClick={() => {
-                  setAddressLine1("");
-                  setAddressLine2("");
-                  setAddressLine3("");
-                  setCity("");
-                  setState("");
-                  setPostcode("");
-                  setMode("signup-pin");
-                }}
-                style={{ flex: 1, background: "none", border: `1px solid ${C.border}`, color: C.cream, borderRadius: 8, cursor: "pointer", fontWeight: "bold", fontSize: 14 }}
-              >
-                Skip Step
-              </button>
             </div>
           </div>
         </FWrap>
