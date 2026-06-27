@@ -1147,7 +1147,7 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
               ✨ <strong>New Phone Number:</strong> We couldn't find an existing profile for your number. Let's register your new Sangat account! 🙏
             </div>
 
-            <FField label="Full Name *" v={name} on={e => setName(e.target.value)} ph="e.g. Rajiv Aggarwal" />
+            <FField label="Full Name *" v={name} on={e => setName(e.target.value)} ph="e.g. Ajay Singh" />
             <FField label="Email Address (Optional)" type="email" v={email} on={e => setEmail(e.target.value)} ph="e.g. name@example.com" />
             
             <Btn onClick={handleSignupBasicNext} full style={{ marginTop: 10 }}>
@@ -1305,7 +1305,7 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
                       outline: "none",
                       boxSizing: "border-box"
                     }}
-                    placeholder="e.g. Sonia Aggarwal"
+                    placeholder="e.g. Priya Singh"
                     value={newGuestName}
                     onChange={e => setNewGuestName(e.target.value)}
                   />

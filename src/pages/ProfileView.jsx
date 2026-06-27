@@ -630,7 +630,7 @@ export default function ProfileView({ user, profile, nav, notify }) {
                   width: "100%",
                   outline: "none"
                 }}
-                placeholder="e.g. Rajiv Aggarwal"
+                placeholder="e.g. Ajay Singh"
                 value={newGuestName}
                 onChange={e => setNewGuestName(e.target.value)}
               />
