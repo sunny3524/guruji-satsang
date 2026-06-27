@@ -1388,6 +1388,22 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
       {mode === "signup-address" && (
         <FWrap title="Where Do You Live?" sub="Step 4 of 5: Helping locate nearest Satsangs in your area">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <button
+              onClick={() => setMode("signup-guests")}
+              style={{
+                alignSelf: "flex-start",
+                background: "none",
+                border: "none",
+                color: C.muted,
+                cursor: "pointer",
+                fontSize: 13,
+                textDecoration: "underline",
+                marginBottom: 6,
+                padding: 0
+              }}
+            >
+              ← Back to guests
+            </button>
             <p style={{ fontSize: 13, color: C.muted, margin: "0 0 10px 0" }}>
               Providing your address allows us to calculate proximity to local Satsangs or prefill location data if you host a Satsang. You can skip this step completely.
             </p>
@@ -1415,6 +1431,22 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
       {mode === "signup-pin" && (
         <FWrap title="Secure Your Account" sub="Step 5 of 5: Create a 6-digit security PIN">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <button
+              onClick={() => setMode("signup-address")}
+              style={{
+                alignSelf: "flex-start",
+                background: "none",
+                border: "none",
+                color: C.muted,
+                cursor: "pointer",
+                fontSize: 13,
+                textDecoration: "underline",
+                marginBottom: 6,
+                padding: 0
+              }}
+            >
+              ← Back to address
+            </button>
             <p style={{ fontSize: 13, color: C.muted, margin: "0 0 10px 0" }}>
               Set up a secure 6-digit numerical PIN. This will allow you to access your Sangat account quickly from any phone or device.
             </p>
