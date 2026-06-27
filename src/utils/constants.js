@@ -149,6 +149,10 @@ export function normalizePhoneWithCountry(rawPhone, countryName) {
     if (clean.startsWith(code)) {
       dialCode = code;
       clean = clean.slice(code.length);
+      // Remove duplicate dial code if it was prepended or typed twice (e.g. +44447424772861)
+      if (clean.startsWith(code) && (clean.length - code.length) >= 8) {
+        clean = clean.slice(code.length);
+      }
       break;
     }
   }
