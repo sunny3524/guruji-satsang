@@ -384,7 +384,7 @@ export default function ProfileView({ user, profile, nav, notify }) {
 
               {/* Address Line 1 */}
               <div>
-                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Address Line 1 *</label>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Address Line 1</label>
                 <input
                   style={{
                     background: "none",
@@ -465,7 +465,7 @@ export default function ProfileView({ user, profile, nav, notify }) {
               {/* City and Postcode */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>City *</label>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>City</label>
                   <input
                     style={{
                       background: "none",
@@ -482,7 +482,7 @@ export default function ProfileView({ user, profile, nav, notify }) {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Zip / Postal Code *</label>
+                  <label style={{ display: "block", marginBottom: 6, fontSize: 12, color: C.gold }}>Zip / Postal Code</label>
                   <input
                     style={{
                       background: "none",
