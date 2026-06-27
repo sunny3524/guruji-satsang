@@ -1339,16 +1339,10 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 12, marginTop: 15 }}>
+            <div style={{ display: "flex", marginTop: 15 }}>
               <Btn onClick={() => setMode("signup-address")} full>
-                Next Step →
+                {guests.length > 0 ? "Save and Next →" : "Skip Step"}
               </Btn>
-              <button
-                onClick={() => setMode("signup-address")}
-                style={{ flex: 1, background: "none", border: `1px solid ${C.border}`, color: C.cream, borderRadius: 8, cursor: "pointer", fontWeight: "bold", fontSize: 14 }}
-              >
-                Skip Step
-              </button>
             </div>
           </div>
         </FWrap>
