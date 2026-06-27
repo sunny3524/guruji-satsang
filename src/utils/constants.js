@@ -83,13 +83,16 @@ export const STANDARD_SEVAS = [
 
 export const GUIDELINES = [
   {
-    icon: "🏠", title: "Setting Up Your Darbar", items: [
-      "Choose a clean, quiet area of the venue dedicated as Guruji's Darbar (spiritual court).",
-      "Place Guruji's Swaroop (photograph) on a clean chair or elevated table draped with a fresh white or saffron cloth.",
-      "Light a single diya (oil lamp) or Akhand Jyot near the Swaroop before the sangat arrives.",
-      "Arrange fresh flowers — roses or lilies are ideal — near the photograph.",
-      "Provide floor seating on rugs or cushions. Chairs should be available for elderly sangat.",
-      "Ensure the venue is clean and fragrant with incense before the first sangat arrives.",
+    icon: "🏠",
+    title: "Setting Up Your Darbar",
+    description: "The Darbar is the spiritual core of the satsang and represents Guruji's divine presence. It should be clean, elegant, and devoid of excessive or ostentatious display.",
+    items: [
+      "The Venue: Choose a clean, quiet area of the venue dedicated as Guruji's Darbar (spiritual court).",
+      "The Seating (Asan): Set up a clean, slightly elevated chowki, small sofa, or chair designated strictly for Guruji. Cover it with a fresh, clean cloth, a chola (if available), and place a small neat towel on the right side or armrest.",
+      "The Swaroop: Place Guruji’s sacred Swaroop (photograph) reverently at the center. Only Guruji’s Swaroop (or alongside Shiv Pariwar, Guru Nanak Dev Ji) and Ganesh Ji is permitted in the Darbar. No other decorative elements should block or overshadow the Swaroop.",
+      "The Jyoti (Diya): Light a clean ghee or oil diya (Akhand Jyot) exactly at the designated start time of the satsang to welcome His divine presence. Ensure any candles or lamps used are stable and safe for devotees bowing down.",
+      "Fragrance & Aesthetics: Use fresh flowers (roses, marigolds) for minimal decoration. Light mild dhoop or incense. Avoid over-powering perfumes or harsh, flashing LED lights; prefer warm, soft, and tranquil lighting.",
+      "Sangat Seating: Provide floor seating on rugs or cushions. Chairs should be available for elderly and physically disabled sangat."
     ]
   },
   {

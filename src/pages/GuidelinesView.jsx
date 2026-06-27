@@ -67,24 +67,54 @@ export default function GuidelinesView() {
             </button>
             <div className={`panel-collapse ${open === i ? "open" : ""}`}>
               <div className="panel-collapse-inner" style={{ padding: "4px 20px 22px 20px", borderTop: `1px solid ${C.border}` }}>
+                {g.description && (
+                  <p style={{
+                    color: C.muted,
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    fontStyle: "italic",
+                    margin: "0 0 16px",
+                    paddingBottom: 12,
+                    borderBottom: `1px dashed rgba(212,151,42,0.15)`
+                  }}>
+                    {g.description}
+                  </p>
+                )}
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {g.items.map((item, j) => (
-                    <li
-                      key={j}
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        padding: "10px 0",
-                        borderBottom: `1px solid rgba(92,42,10,0.4)`,
-                        fontSize: 15,
-                        lineHeight: 1.75,
-                        color: "#d4b98a"
-                      }}
-                    >
-                      <span style={{ flexShrink: 0, paddingTop: 2 }}>🌹</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
+                  {g.items.map((item, j) => {
+                    const colonIndex = item.indexOf(":");
+                    let renderedContent;
+
+                    if (colonIndex !== -1 && colonIndex < 35) {
+                      const header = item.substring(0, colonIndex);
+                      const body = item.substring(colonIndex + 1);
+                      renderedContent = (
+                        <span>
+                          <strong style={{ color: C.gold, marginRight: 4 }}>{header}:</strong>{body}
+                        </span>
+                      );
+                    } else {
+                      renderedContent = <span>{item}</span>;
+                    }
+
+                    return (
+                      <li
+                        key={j}
+                        style={{
+                          display: "flex",
+                          gap: 12,
+                          padding: "10px 0",
+                          borderBottom: `1px solid rgba(92,42,10,0.4)`,
+                          fontSize: 15,
+                          lineHeight: 1.75,
+                          color: "#d4b98a"
+                        }}
+                      >
+                        <span style={{ flexShrink: 0, paddingTop: 2 }}>🌹</span>
+                        {renderedContent}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
