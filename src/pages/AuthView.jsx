@@ -393,8 +393,8 @@ export default function AuthView({ nav, notify, ipCountry, initialMode }) {
       setMode("signup-sms-otp");
       notify("Verification SMS sent! Please enter the code.", "ok");
     } catch (e) {
-      console.error(`Firebase SMS Auth error detail for ${formattedPhone}:`, e);
-      notify(`${e.code || "Error"}: ${e.message.replace("Firebase:", "").trim()} [Target Phone: ${formattedPhone}]`, "err");
+      console.error("Firebase SMS Auth error detail:", e);
+      notify(`${e.code || "Error"}: ${e.message.replace("Firebase:", "").trim()}`, "err");
       if (window.recaptchaVerifierRegister) {
         window.recaptchaVerifierRegister.clear();
         window.recaptchaVerifierRegister = null;
