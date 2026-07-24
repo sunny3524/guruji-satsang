@@ -64,10 +64,10 @@ export default function HomeView({ nav, upcoming, user, heroImg, gurujiImgs }) {
 
       <SectionWrap label="Upcoming Satsangs" shaded>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          {upcoming.slice(0, 3).map(s => (
+          {upcoming.filter(s => !s.isPrivate).slice(0, 3).map(s => (
             <SCard key={s.id} s={s} nav={nav} />
           ))}
-          {upcoming.length === 0 && (
+          {upcoming.filter(s => !s.isPrivate).length === 0 && (
             <p style={{ color: C.muted, fontSize: 15 }}>
               No upcoming satsangs yet. Be the first to host one! 🙏
             </p>
